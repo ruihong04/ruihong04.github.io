@@ -1,1 +1,394 @@
-Hello World
+<!DOCTYPE HTML>
+<html lang="en">
+
+<!-- head -->
+<head>
+  <script>
+    (function () {
+        var a_idx = 0;
+        window.onclick = function (event) {
+            var a = new Array("🥺","😇","😂","🥰","🥹", "🥳", "😯", "😈", "😹");
+
+            var heart = document.createElement("b");
+            heart.onselectstart = new Function('event.returnValue=false');
+
+            document.body.appendChild(heart).innerHTML = a[a_idx];
+            a_idx = (a_idx + 1) % a.length;
+            heart.style.cssText = "position: fixed;left:-100%;";
+
+            var f = 16, 
+                x = event.clientX - f / 2, 
+                y = event.clientY - f,
+                c = randomColor(), 
+                a = 1,
+                s = 1.2; 
+
+            var timer = setInterval(function () { 
+                if (a <= 0) {
+                    document.body.removeChild(heart);
+                    clearInterval(timer);
+                } else {
+                    heart.style.cssText = "font-size:16px;cursor: default;position: fixed;color:" +
+                        c + ";left:" + x + "px;top:" + y + "px;opacity:" + a + ";transform:scale(" +
+                        s + ");";
+
+                    y--;
+                    a -= 0.016;
+                    s += 0.002;
+                }
+            }, 15)
+
+        }
+        function randomColor() {
+
+            return "rgb(" + (~~(Math.random() * 255)) + "," + (~~(Math.random() * 255)) + "," + (~~(Math
+            .random() * 255)) + ")";
+
+        }
+    }());
+
+  </script>
+
+
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Ruihong Shen   |   沈睿弘</title>
+
+
+
+  <meta name="author" content="Ruihong Shen">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link rel="stylesheet" type="text/css" href="stylesheet.css">
+	<link rel="icon" type="image/png" href="images/icon.jpg">
+</head>
+
+<!-- bib hide -->
+<script type="text/javascript">
+  function hideshow(which){
+  if (!document.getElementById)
+  return
+  if (which.style.display=="block")
+  which.style.display="none"
+  else
+  which.style.display="block"
+  }
+
+
+  </script>
+
+
+
+
+
+<!-- body -->
+<body>
+
+
+  <!-- self-intro --> 
+  <table style="width:100%;max-width:800px;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
+    <tr style="padding:0px">
+      <td style="padding:0px">
+        <table style="width:100%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
+          <tr style="padding:0px">
+            <td style="padding:2%;width:55%;vertical-align:middle;">
+              <p style="text-align:center">
+                <name> Ruihong Shen | 沈睿弘 </name>
+
+              </p>
+              <p style="text-align: justify">
+            
+                <intro>&emsp;&emsp;I am a sophomore in <a href="https://zhi-class.ai" target="_blank">
+                  <d>Zhi Class 2023</d></a> at the <a href="https://eecs.pku.edu.cn/" target="_blank">
+                  <d>School of Electronics Engineering and Computer Science (EECS)</d></a> of
+                   <a href="https://english.pku.edu.cn/" target="_blank"><d>Peking University</d></a>.
+                   I am pursuing a degree in Intelligence Science and Technology while also pursuing a dual degree in <a href="https://www.psy.pku.edu.cn/" target="_blank">
+                    <d>Psychology</d></a>. 
+                  I am currently advised by Prof. <a href="https://yzhu.io/" target="_blank">
+                    <d>Yixin Zhu</d></a> at <a href="https://pku.ai/" target="_blank"><d>Cognitive Reasnoning (CoRe) Lab</d></a>, Institute for Artificial Intelligence, Peking University.
+                    <br />
+                    &emsp;&emsp;My current research interest lies in physcial reasoning and few-shot learning, with the goal of
+                    enabling AI agents to understand our surrounding physical world. I'm also interested in the intersection of AI and cognitive science.
+                    <br>
+                    &emsp;&emsp;Feel free to reach out if you have any comments, questions about me, my research, or anything else! 🥺
+                  </intro>
+              <p style="text-align:center">
+                <a href="mailto:shen.ruihong@stu.pku.edu.cn" target="_blank">Email</a> &nbsp/&nbsp
+                <!-- <a href="https://scholar.google.com/citations?user=Inr-6rEAAAAJ" target="_blank">Google Scholar</a> &nbsp/&nbsp -->
+                <a href="https://github.com/ruihong04/" target="_blank">Github</a>&nbsp/&nbsp
+                <!-- <a href="https://twitter.com/HaoranGeng2/" target="_blank">Twitter</a>&nbsp/&nbsp -->
+                <a href="images/class_wechat.jpg" target="_blank">Class WeChat Official Account</a>
+              </p>
+            </td>
+            <td style="padding:0%; width:26%; max-width:26%;"> 
+              <br>
+           
+              <img style="padding:1%; width:100%; max-width:80%;  display: block; margin-left: auto; margin-right: auto; " alt="profile photo" src="images/portrait.jpg">
+              <div style="text-align:center">
+                <style>
+                  .threesolid{
+                    font-size: 20px;
+                    font-family: cursive;
+                    color:#454545;
+                    text-shadow:0px 1px 0px #c0c0c0,
+                      0px 2px 0px #b0b0b0,
+                      0px 3px 0px #a0a0a0,
+                      0px 4px 0px #909090,
+                      0px 5px 10px rgba(0, 0, 0, .9);
+                  } 
+                  </style>
+                <!-- <a href="https://www.quoteslyfe.com/images/collection2/quotations331/Don-t-be-afraid-to-start-over-331234.jpg" target="_blank"><div class="threesolid">quote of the day</div></a> -->
+              </div>
+            
+              <!-- <a href="https://hits.seeyoufarm.com" target="_blank">
+                <img 
+                  src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fselina2023.github.io&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false"
+                  style="display: block; margin-left: auto; margin-right: auto; width: 55%;"/>
+              </a> -->
+            </td>
+            <!-- <td style="padding:5%;width:37%;max-width:37%"> 
+              <img style="width:100%;max-width:100%" alt="profile photo" src="images/face3.jpg" class="hoverZoomLink">
+              <a href="https://hits.seeyoufarm.com" target="_blank"><img src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgeng-haoran.github.io&count_bg=%23FF8400&title_bg=%23545353&icon=tableau.svg&icon_color=%23F3F209&title=hits&edge_flat=false"/></a>
+            </td> -->
+          </tr>
+        </tbody></table>
+        <table style="width:100%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
+    </tr>
+  </tbody></table>
+
+  
+
+  <!-- Research -->
+  <table style="width:100%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
+    <br>
+    <heading>Research</heading>
+    <br>
+
+    <!-- NFF -->
+      <!-- <td style="padding:20px;width:30%;vertical-align:middle">
+        <div class="one">
+            <img src='images/research/nff.jpg' width="200"></div>
+        </div>
+      </td>
+      <td style="padding:20px;width:70%;vertical-align:middle">
+        <a href="https://pku-epic.github.io/Open6DOR" target="_blank">
+          <papertitle><br>Neural Force Field: Learning Generalized Physical Representation from a Few Examples</papertitle>
+        </a>
+      <br>
+        <a class="a2" href="https://lishiqianhugh.github.io/" target="_blank">Shiqian Li</a>*,
+        <a class="a2" href="https://ruihong04.github.io/" target="_blank"><strong>Ruihong Shen</strong>*</a>,  
+        <a class="a2" href="http://wellyzhang.github.io/" target="_blank">Chi Zhang</a><span>&#8224;</span>,
+        <a class="a2" href="https://yzhu.io/" target="_blank">Yixin Zhu</a><span>&#8224;</span>
+        <br>
+        <a href="https://arxiv.org/abs/2312.01307" target="_blank">ArXiv</a>
+        /
+        <a href="https://neuralforcefield.github.io/" target="_blank">Project Page</a>
+        /
+        <a href="https://vimeo.com/1055247476">Video</a>
+        /
+        <a href="https://github.com/lishiqianhugh/NeuralForceField" target="_blank">Github</a>
+        <br>
+        <em><strong>IROS 2024, <b><font color='red'>Oral Presentation</font></b></strong></em>
+        <br>
+        <em><strong>CVPR 2024 @ VLADA, <b><font color='red'>Oral Presentation</font></b></strong></em>
+        <br>
+        <em><strong>ICRA 2024 @ 3D Manipulation, <b><font color='red'>Spotlight Presentation</font></b></strong></em> 
+        <p></p>
+        <p> We present NFF, a modeling framework built on NODE that learns interpretable force field representations which can be efficiently integrated through an ODE solver to predict object trajectories.
+          Unlike existing approaches that rely on high-dimensional latent spaces, NFF captures fundamental physical concepts such as gravity, support, and collision in an interpretable manner. Experiments on two challenging physical reasoning tasks demonstrate that NFF, trained with only a few examples, achieves strong generalization to unseen scenarios.
+          This physics-grounded representation enables efficient forward-backward planning and rapid adaptation through interactive refinement.</p>
+      </td> -->
+
+  </tbody></table>
+    
+  <!-- Services -->
+  <table style="width:90%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
+      <tr>
+        <br>
+        <heading>Services</heading>
+        <br>
+      <td style="padding:0px;width:100%;vertical-align:middle">
+        <!-- <p>
+          <li>Leader of <a href="https://zhi-class.ai" target="_blank">Zhi Class</a></strong>, Cofounder of its <a href="images/ACIST_wechat_account.pdf" target="_blank">wechat public account</a> and <a href="https://zhi-class.ai" target="_blank">website</a>.</li>
+        </p> -->
+      </td>
+    </tr>
+  </tbody></table>
+
+  <!-- Experience -->
+
+  <table width="100%" align="center" border="0" cellpadding="10"><tbody>
+      <br>
+          <heading>Experience</heading>
+      <br>
+      <tr>
+        <td style="padding-left:27px;padding-right:20px;width:20%;vertical-align:middle"><img src="images/experience/core_lab.png", width="108"></td>
+        <td width="90%" valign="center">
+          <strong><a href="https://pku.ai/" target="_blank"><papertitle>Cognitive Reasoning (CoRe) Lab, Institute for Artificial Intelligence, Peking University, China
+          </papertitle></a></strong>
+          <br> <em>2024.03 - Present</em>
+          <br> <strong>Student Research Intern</strong>
+        </td>
+      </tr> 
+      <tr>
+        <br>
+        <td style="padding-left:20px;padding-right:20px;width:20%;vertical-align:middle"><img src="images/experience/Zhilogo.png", width="108"></td>
+        <td width="90%" valign="center">
+          <strong><a href="https://zhi-class.ai" target="_blank">Zhi Class (智班)</a></strong>
+          <br> <em>2023.09 - Present</em>
+        </td>
+      </tr>
+      <tr>
+          <br>
+          <td style="padding-left:20px;padding-right:20px;width:20%;vertical-align:middle"><img src="images/experience/pkulogo.png", width="108"></td>
+          <td width="90%" valign="center">
+            <strong><a href="https://english.pku.edu.cn/" target="_blank"><papertitle>Peking University (北京大学)</papertitle></a></strong>
+            <br> <em>2023.09 - Present</em>
+            <br> <strong> Undergraduate Student</strong>
+            <br> Major:  Intelligence Science and Technology (Artificial Intelligence)
+            <br> Double Major: Psychology
+          </td>
+      </tr>
+      <tr>
+        <br>
+        <td style="padding-left:20px;padding-right:20px;width:20%;vertical-align:middle"><img src="images/experience/fdfz.png", width="108"></td>
+        <td width="90%" valign="center">
+          <strong><a href="https://fdfz.cn/" target="_blank"><papertitle>High School Affiliated to Fudan University (复旦大学附属中学)</papertitle></a></strong>
+          <br> <em>2020.09 - 2023.06</em>
+          <br> <strong> High School Student</strong>
+        </td>
+    </tr>
+        
+  </tbody></table>
+
+  <!-- Selected Awards and Honors -->
+  <table style="width:90%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
+          
+          <br>
+          <heading>Selected Awards</heading>
+          <p>
+            <li>2024: <strong>National Scholarship</strong> </li>
+          </p>
+          <p>
+            <li>2024: Merit Student of Peking University</li>
+          </p>     
+          <p>
+            <li>2023: Peking University Freshman Scholarship</li>
+          </p>
+        </td>
+      </tr>
+  </tbody></table>
+
+  <!-- Miscellaneous -->
+  <table style="width:90%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
+          <br>
+          <heading>Miscellaneous</heading>
+          <br>
+          <p>
+            Just a part showing photos recently taken. Hope you enjoy them :) 🥺🥺🥺
+          </p>
+          </p>
+          <tr>
+            <td style="padding:0px;width:100%;vertical-align:middle">
+              <div id="gallery-container">
+                <div id="gallery">
+                  <!-- Image 1 -->
+                  <div class="gallery-item">
+                    <img src="images/gallery/photo1.jpg" alt="Gallery Image 1" />
+                  </div>
+                  <!-- Image 2 -->
+                  <div class="gallery-item">
+                    <img src="images/gallery/photo2.jpg" alt="Gallery Image 2" />
+                  </div>
+                  <!-- Image 3 -->
+                  <div class="gallery-item">
+                    <img src="images/gallery/photo3.jpg" alt="Gallery Image 3" />
+                  </div>
+                  <!-- Image 4 -->
+                  <div class="gallery-item">
+                    <img src="images/gallery/photo4.jpg" alt="Gallery Image 4" />
+                  </div>
+                  <!-- Image 5 -->
+                  <div class="gallery-item">
+                    <img src="images/gallery/photo5.jpg" alt="Gallery Image 5" />
+                  </div>
+                  <!-- Image 6 -->
+                  <div class="gallery-item">
+                    <img src="images/gallery/photo6.jpg" alt="Gallery Image 6" />
+                  </div>
+                  <!-- Image 7 -->
+                  <div class="gallery-item">
+                    <img src="images/gallery/photo7.jpg" alt="Gallery Image 7" />
+                  </div>
+                  <!-- Image 8 -->
+                  <div class="gallery-item">
+                    <img src="images/gallery/photo8.jpg" alt="Gallery Image 8" />
+                  </div>
+                  <!-- Image 9 -->
+                  <div class="gallery-item">
+                    <img src="images/gallery/photo9.jpg" alt="Gallery Image 9" />
+                  </div>
+                </div>
+    
+                <!-- Navigation Controls -->
+                <div id="prev" class="gallery-control">❮</div>
+                <div id="next" class="gallery-control">❯</div>
+              </div>
+            </td>
+          </tr>
+
+        <!-- <td style="padding:0px;width:100%;vertical-align:middle"> -->
+        </td>
+      </tr>
+  </tbody></table>
+  
+  <script>
+    // JavaScript for gallery navigation
+
+    let currentIndex = 0;
+    const galleryItems = document.querySelectorAll('.gallery-item');
+    const totalItems = galleryItems.length;
+
+    const prevButton = document.getElementById('prev');
+    const nextButton = document.getElementById('next');
+
+    function showImages(index) {
+      // Ensure index is within bounds
+      if (index >= totalItems - 1) {
+        currentIndex = 0;
+      } else if (index < 0) {
+        currentIndex = totalItems - 2;
+      } else {
+        currentIndex = index;
+      }
+
+      // Update the gallery's transform property to shift to the correct set of 2 images
+      document.getElementById('gallery').style.transform = `translateX(-${currentIndex * 50}%)`;
+    }
+
+    // Attach event listeners to navigation controls
+    prevButton.addEventListener('click', () => showImages(currentIndex - 1));
+    nextButton.addEventListener('click', () => showImages(currentIndex + 1));
+
+    // Optionally, you could also auto-advance images every few seconds
+    setInterval(() => {
+      showImages(currentIndex + 1);
+    }, 5000); // Change every 5 seconds
+  </script>
+
+  <!-- Aknowledgements -->
+  <table style="width:100%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
+    <tr>
+      <!-- <br> -->
+      <!-- <br> -->
+      <hr>
+        <p style="text-align:center">
+          This homepage is designed based on <a href="https://jonbarron.info/">Jon Barron</a>'s website. 
+
+    
+        </p>
+      </td>
+      </tr>
+  </tbody></table>
+ 
+</body>
+</html>
