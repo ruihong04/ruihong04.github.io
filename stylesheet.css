@@ -100,13 +100,13 @@ tr,
 p,
 a {
   font-family: 'Lato', Verdana, Helvetica, sans-serif;
-  font-size: 18px;
+  font-size: 14px;
   
 }
 
 strong {
   font-family: 'Lato', Verdana, Helvetica, sans-serif;
-  font-size: 18px;
+  font-size: 14px;
 }
 
 heading {
@@ -129,7 +129,7 @@ heading2 {
 
 papertitle {
   font-family: 'Lato', Verdana, Helvetica, sans-serif;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
   /* text-decoration-color: #964b00 */
 }
@@ -141,7 +141,7 @@ name {
 
 abs {
   font-family: 'Lato', Verdana, Helvetica, sans-serif;
-  font-size: 18px;
+  font-size: 14px;
   color:
   	#EB6400;
 }
