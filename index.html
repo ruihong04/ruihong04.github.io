@@ -73,7 +73,18 @@
   which.style.display="block"
   }
 
-
+  function toggleAbstract(element) {
+    const content = element.previousElementSibling;
+    const isCollapsed = content.classList.contains('collapsed');
+    
+    if (isCollapsed) {
+      content.classList.remove('collapsed');
+      element.innerText = "Show less";
+    } else {
+      content.classList.add('collapsed');
+      element.innerText = "Show more";
+    }
+  }
   </script>
 
 
@@ -119,7 +130,7 @@
                 <a href="https://www.xiaohongshu.com/user/profile/68f247b20000000037001ebf" target="_blank">Xiaohongshu</a>
               </p>
             </td>
-            <td style="padding:0%; width:26%; max-width:26%;"> 
+            <td style="padding:0%; width:26%; max-width:26%; vertical-align:middle"> 
               <br>
            
               <img style="padding:1%; width:100%; max-width:80%;  display: block; margin-left: auto; margin-right: auto; " alt="profile photo" src="images/portrait.jpg">
@@ -158,16 +169,118 @@
   
 
   <!-- Research -->
-  <table style="width:100%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
+  <style>
+    .highlight {
+      background-color: #ffffd0;
+    }
+    /* Make highlight padding smaller and override inline styles */
+    .highlight td {
+      padding: 10px !important;
+    }
+    /* Add rounded corners to the highlight */
+    .highlight td:first-child {
+      border-top-left-radius: 10px;
+      border-bottom-left-radius: 10px;
+    }
+    .highlight td:last-child {
+      border-top-right-radius: 10px;
+      border-bottom-right-radius: 10px;
+    }
+
+    /* Abstract collapse styles */
+    .abstract-container {
+      position: relative;
+    }
+    .abstract-content {
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+      line-height: 1.25em; /* Ensure consistent line height */
+    }
+    .abstract-content > p {
+      margin: 0;
+      padding: 0;
+      display: inline; /* Or block, but margin 0 is key */
+    }
+    .abstract-content.collapsed {
+      max-height: 6em; /* Exactly 4 lines */
+    }
+    
+    /* Show More button styles */
+    .abstract-toggle {
+      cursor: pointer;
+      color: #ec690be3;
+      font-size: 0.9em;
+      margin-top: 5px;
+      display: block; /* Default display for Show Less */
+      text-align: right;
+    }
+
+    /* When collapsed, position absolute at bottom right */
+    .abstract-content.collapsed + .abstract-toggle {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      margin-top: 0;
+      padding-left: 10px;
+      background-color: white; /* Cover text behind */
+    }
+
+    /* Highlight row background adjustments */
+    tr.highlight .abstract-content.collapsed + .abstract-toggle {
+      background-color: #ffffd0;
+    }
+
+    .abstract-toggle:hover {
+      color: #f09228;
+      text-decoration: underline;
+    }
+  </style>
+  <table style="width:100%;max-width:800px;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
     <br>
     <heading>Research</heading>
     <br>
+    <p style="font-size:1em;margin-top:8px;margin-bottom:2px;">
+      <sup>*</sup> Joint first author <span style="display:inline-block;width:1.5em;"></span>
+      <sup>†</sup> Corresponding author
+    </p>
+    <!-- Highlighted New Paper -->
+    <tr class="highlight">
+      <td style="padding:20px;width:30%;vertical-align:middle">
+        <img src='images/research/ngff_main.jpg' style="width:100%;max-width:100%">
+      </td>
+      <td style="padding:20px;width:70%;vertical-align:middle">
+        <a href="https://neuralgaussianforcefield.github.io/" target="_blank">
+          <papertitle><br>Learning Physics-Grounded 4D Dynamics with Neural Gaussian Force Fields</papertitle>
+        </a>
+      <br>
+        <a class="a2" href="https://lishiqianhugh.github.io/" target="_blank">Shiqian Li</a>*,
+        <a class="a2" href="https://ruihong04.github.io/" target="_blank"><strong>Ruihong Shen</strong>*</a>,
+        <a class="a2" href="https://dali-jack.github.io/Junfeng-Ni/" target="_blank">Junfeng Ni</a>,
+        <a class="a2" href="https://pku.ai/author/chang-pan/" target="_blank">Chang Pan</a>,
+        <a class="a2" href="http://wellyzhang.github.io/" target="_blank">Chi Zhang</a><span>&#8224;</span>,
+        <a class="a2" href="https://yzhu.io/" target="_blank">Yixin Zhu</a><span>&#8224;</span>
+        <br>
+        <a href="https://neuralgaussianforcefield.github.io/" target="_blank">Project Page</a>
+        <br>
+        <p></p>
+        <div class="abstract-container">
+        <div class="abstract-content collapsed">
+        <p> Predicting physical dynamics from visual data remains a fundamental challenge in AI, as it requires both accurate scene understanding and robust physics reasoning.
+          While recent video generation models achieve impressive visual quality, they lack explicit physics modeling and frequently violate fundamental laws like gravity and object permanence. Existing approaches combining 3D Gaussian splatting with traditional physics engines achieve physical consistency but suffer from prohibitive computational costs and struggle with complex real-world multi-object interactions.
+          The key challenge lies in developing a unified framework that learns physics-grounded representations directly from visual observations while maintaining computational efficiency and generalization capability.
+          Here we introduce NGFF, an end-to-end neural framework that learns explicit force fields from 3D Gaussian representations to generate interactive, physically realistic 4D videos from multi-view RGB inputs, achieving two orders of magnitude speedup over prior Gaussian simulators.
+          Through explicit force field modeling, NGFF demonstrates superior spatial, temporal, and compositional generalization compared to SOTA methods, including Veo3 and NVIDIA Cosmos, while enabling robust sim-to-real transfer. Comprehensive evaluation on our GSCollision dataset---640k rendered physical videos (~4TB) spanning diverse materials and complex multi-object interactions---validates NGFF's effectiveness across challenging scenarios.
+          Our results demonstrate that NGFF provides an effective bridge between visual perception and physical understanding, advancing video prediction toward physics-grounded world models with interactive capabilities. </p>
+        </div>
+        <a class="abstract-toggle" onclick="toggleAbstract(this)">Show more</a>
+        </div>
+      </td>
+    </tr>
 
     <!-- NFF -->
+    <tr>
       <td style="padding:20px;width:30%;vertical-align:middle">
-        <div class="one">
-            <img src='images/research/nff.jpg' width="200"></div>
-        </div>
+        <img src='images/research/nff_v2.jpg' style="width:100%;max-width:100%">
       </td>
       <td style="padding:20px;width:70%;vertical-align:middle">
         <a href="https://neuralforcefield.github.io/" target="_blank">
@@ -190,11 +303,16 @@
         <br>
         <em><strong>arxiv, preprint</b></strong></em> 
         <p></p>
+        <div class="abstract-container">
+        <div class="abstract-content collapsed">
         <p> We present NFF, a modeling framework built on NODE that learns interpretable force field representations which can be efficiently integrated through an ODE solver to predict object trajectories.
           Unlike existing approaches that rely on high-dimensional latent spaces, NFF captures fundamental physical concepts such as gravity, support, and collision in an interpretable manner. Experiments on two challenging physical reasoning tasks demonstrate that NFF, trained with only a few examples, achieves strong generalization to unseen scenarios.
           This physics-grounded representation enables efficient forward-backward planning and rapid adaptation through interactive refinement.</p>
+        </div>
+        <a class="abstract-toggle" onclick="toggleAbstract(this)">Show more</a>
+        </div>
       </td>
-
+    </tr>
   </tbody></table>
     
   <!-- Services -->
@@ -368,7 +486,7 @@
           <td style="padding:0px;width:23%;vertical-align:left">
               <br>
               <div style="width: 50%; text-align: center; margin: 0 auto;">
-                <script type="text/javascript" id="clustrmaps" src="//cdn.clustrmaps.com/map_v2.js?cl=ffffff&w=a&t=n&d=OTa5sS21O7PU4KbcH9A8pmokTpj0_n1TsVsIkBstqcs"></script>
+                <script type="text/javascript" id="clustrmaps" src="//cdn.clustrmaps.com/map_v2.js?cl=ffffff&w=a&t=tt&d=OTa5sS21O7PU4KbcH9A8pmokTpj0_n1TsVsIkBstqcs"></script>
               </div>
           </td>
       </tr>
@@ -381,7 +499,7 @@
       <!-- <br> -->
       <hr>
         <p style="text-align:center">
-          Last updated: 2025-10-20.&nbsp;&nbsp;&nbsp;&nbsp; This homepage is designed based on <a href="https://jonbarron.info/">Jon Barron</a>'s website. 
+          Last updated: 2025-10-24.&nbsp;&nbsp;&nbsp;&nbsp; This homepage is designed based on <a href="https://jonbarron.info/">Jon Barron</a>'s website. 
         </p>
       </td>
       </tr>

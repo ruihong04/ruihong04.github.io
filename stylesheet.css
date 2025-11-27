@@ -169,6 +169,16 @@ abs {
 span.highlight {
   background-color: #ffffd0;
 }
+.author-caption {
+  margin: 20px 0 20px;
+  font-size: 14px;
+  color: #666666;
+  text-align: left;
+}
+.caption-gap {
+  display: inline-block;
+  width: 1.5em;
+}
 
 /* Gallery Styling */
 #gallery-container {
