@@ -113,6 +113,17 @@ heading {
   font-family: 'Lato', Verdana, Helvetica, sans-serif;
   font-size: 25px;
   /*color: #313164;*/
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15em;
+}
+
+.heading-emoji {
+  font-size: inherit;
+  line-height: 1;
+}
+
+.heading-text {
   text-decoration: underline;
   text-decoration-style: solid;
   -webkit-text-decoration-color: #ad7020;
@@ -169,6 +180,140 @@ abs {
 span.highlight {
   background-color: #ffffd0;
 }
+
+.research-section {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.research-list {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  margin-top: 12px;
+}
+
+.research-item {
+  display: grid;
+  grid-template-columns: minmax(0, 30%) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  padding: 20px;
+  box-sizing: border-box;
+  border-radius: 14px;
+}
+
+.research-item--highlight {
+  background-color: #ffffd0;
+}
+
+.research-media {
+  width: 100%;
+}
+
+.research-media img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+
+.research-body {
+  min-width: 0;
+}
+
+.research-title {
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.research-title papertitle {
+  display: block;
+  margin: 0;
+}
+
+.research-authors,
+.research-links,
+.research-venue {
+  margin: 0 0 6px;
+}
+
+.research-venue {
+  margin-bottom: 12px;
+}
+
+.abstract-container {
+  position: relative;
+  --abstract-bg: #ffffff;
+  --abstract-line-height: 1.1em;
+}
+
+.abstract-content {
+  max-width: 100%;
+  line-height: var(--abstract-line-height);
+  margin: 0;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  display: block;
+}
+
+.abstract-reserve {
+  display: none;
+}
+
+.abstract-toggle {
+  cursor: pointer;
+  color: #ec690be3;
+  font-size: 14px;
+  display: inline;
+  margin: 0;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.abstract-tail {
+  display: none;
+}
+
+.abstract-suffix {
+  display: inline-block;
+  white-space: pre;
+  line-height: var(--abstract-line-height);
+}
+
+.abstract-filler {
+  display: inline-block;
+  width: 0;
+}
+
+.abstract-gap {
+  display: inline-block;
+  white-space: pre;
+}
+
+.abstract-line {
+  display: block;
+  line-height: var(--abstract-line-height);
+}
+
+.abstract-line--tail {
+  white-space: nowrap;
+}
+
+.abstract-line-text {
+  display: inline;
+}
+
+.abstract-toggle:hover {
+  color: #f09228;
+  text-decoration: underline;
+}
+
+tr.highlight .abstract-container {
+  --abstract-bg: #ffffd0;
+}
+
 .author-caption {
   margin: 20px 0 20px;
   font-size: 14px;
@@ -184,43 +329,52 @@ span.highlight {
 #gallery-container {
   position: relative;
   width: 100%;
-  max-width: 800px; /* Adjust the width of the gallery container */
+  max-width: 800px;
   margin: 0 auto;
+}
+
+#gallery-viewport {
   overflow: hidden;
+  border-radius: 12px;
+  margin: 0 auto;
   box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 #gallery {
   display: flex;
-  transition: transform 1s ease;
+  will-change: transform;
 }
 
 .gallery-item {
-  min-width: 50%; /* Display 2 images at a time */
+  flex: 0 0 50%;
 }
 
 .gallery-item img {
+  display: block;
   width: 100%;
-  height: auto;
-  object-fit: cover; /* Ensure images fill the container without distortion */
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
 }
 
 .gallery-control {
   position: absolute;
   top: 50%;
-  font-size: 1.5rem; /* Smaller size for the control */
+  font-size: 1.5rem;
+  border: 0;
   color: rgba(255, 255, 255, 0.8);
   background: rgba(0, 0, 0, 0.6);
   padding: 8px;
   cursor: pointer;
-  border-radius: 50%; /* Circle shape */
+  border-radius: 50%;
   transform: translateY(-50%);
   z-index: 1;
-  width: 40px; /* Smaller size for the control */
-  height: 40px; /* Smaller size for the control */
+  width: 40px;
+  height: 40px;
   display: flex;
   justify-content: center;
   align-items: center;
+  line-height: 1;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 #prev {
@@ -233,4 +387,21 @@ span.highlight {
 
 .gallery-control:hover {
   background: rgba(0, 0, 0, 0.8);
+}
+
+.gallery-control:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+  .research-item {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 18px;
+  }
+
+  .research-list {
+    gap: 20px;
+  }
 }

@@ -64,6 +64,15 @@
 
 <!-- bib hide -->
 <script type="text/javascript">
+  var ABSTRACT_PREVIEW_LINES = 4;
+  var ABSTRACT_COLLAPSED_SUFFIX = '...';
+  var ABSTRACT_EXPANDED_SUFFIX = '';
+  var ABSTRACT_TOGGLE_GAP = '    ';
+  var ABSTRACT_TAIL_WIDTH_BUFFER = 0;
+  var abstractStates = new WeakMap();
+  var abstractMeasureNode = null;
+  var abstractResizeFrame = null;
+
   function hideshow(which){
   if (!document.getElementById)
   return
@@ -74,17 +83,349 @@
   }
 
   function toggleAbstract(element) {
-    const content = element.previousElementSibling;
-    const isCollapsed = content.classList.contains('collapsed');
-    
-    if (isCollapsed) {
-      content.classList.remove('collapsed');
-      element.innerText = "Show less";
-    } else {
-      content.classList.add('collapsed');
-      element.innerText = "Show more";
+    var container = element.closest('.abstract-container');
+    var state = abstractStates.get(container);
+    if (!state || !state.isTruncatable) {
+      return;
     }
+
+    state.expanded = !state.expanded;
+    renderAbstract(container);
   }
+
+  function normalizeAbstractText(text) {
+    return text.replace(/\s+/g, ' ').trim();
+  }
+
+  function resolveLineHeight(reference) {
+    var styles = window.getComputedStyle(reference);
+    var lineHeight = parseFloat(styles.lineHeight);
+    if (!Number.isFinite(lineHeight)) {
+      lineHeight = parseFloat(styles.fontSize) * 1.2;
+    }
+    return lineHeight;
+  }
+
+  function getAbstractMeasureNode(reference) {
+    if (!abstractMeasureNode) {
+      abstractMeasureNode = document.createElement('div');
+      abstractMeasureNode.style.position = 'absolute';
+      abstractMeasureNode.style.visibility = 'hidden';
+      abstractMeasureNode.style.pointerEvents = 'none';
+      abstractMeasureNode.style.zIndex = '-1';
+      abstractMeasureNode.style.left = '-9999px';
+      abstractMeasureNode.style.top = '0';
+      abstractMeasureNode.style.whiteSpace = 'normal';
+      abstractMeasureNode.style.wordBreak = 'normal';
+      abstractMeasureNode.style.overflowWrap = 'break-word';
+      document.body.appendChild(abstractMeasureNode);
+    }
+
+    var styles = window.getComputedStyle(reference);
+    abstractMeasureNode.style.font = styles.font;
+    abstractMeasureNode.style.fontFamily = styles.fontFamily;
+    abstractMeasureNode.style.fontSize = styles.fontSize;
+    abstractMeasureNode.style.fontWeight = styles.fontWeight;
+    abstractMeasureNode.style.fontStyle = styles.fontStyle;
+    abstractMeasureNode.style.letterSpacing = styles.letterSpacing;
+    abstractMeasureNode.style.lineHeight = styles.lineHeight;
+    abstractMeasureNode.style.textTransform = styles.textTransform;
+
+    return abstractMeasureNode;
+  }
+
+  function measureInlineTextWidth(reference, text) {
+    var measureNode = getAbstractMeasureNode(reference);
+    measureNode.style.width = 'auto';
+    measureNode.style.whiteSpace = 'pre';
+    measureNode.textContent = text;
+    return measureNode.getBoundingClientRect().width;
+  }
+
+  function getTailWidth(state, suffixText, toggleLabel) {
+    return (
+      measureInlineTextWidth(state.content, suffixText) +
+      measureInlineTextWidth(state.content, ABSTRACT_TOGGLE_GAP) +
+      measureInlineTextWidth(state.toggle, toggleLabel) +
+      ABSTRACT_TAIL_WIDTH_BUFFER
+    );
+  }
+
+  function normalizeLineSlice(text) {
+    return text.replace(/^\s+/g, '').replace(/\s+$/g, '');
+  }
+
+  function getRemainingText(state, startIndex) {
+    return state.characters.slice(startIndex).join('').replace(/^\s+/g, '');
+  }
+
+  function skipWrapSpaces(state, index) {
+    while (index < state.characters.length && state.characters[index] === ' ') {
+      index += 1;
+    }
+
+    return index;
+  }
+
+  function findLineEnd(state, startIndex, maxWidth) {
+    var start = skipWrapSpaces(state, startIndex);
+    if (start >= state.characters.length) {
+      return start;
+    }
+
+    var low = start;
+    var high = state.characters.length;
+
+    while (low < high) {
+      var mid = Math.ceil((low + high) / 2);
+      var candidate = normalizeLineSlice(state.characters.slice(start, mid).join(''));
+
+      if (measureInlineTextWidth(state.content, candidate) <= maxWidth) {
+        low = mid;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    if (low === start) {
+      return Math.min(start + 1, state.characters.length);
+    }
+
+    return low;
+  }
+
+  function buildLine(state, text, suffixText, toggleLabel, isExpanded) {
+    var suffixWidth = measureInlineTextWidth(state.content, suffixText);
+    var gapWidth = measureInlineTextWidth(state.content, ABSTRACT_TOGGLE_GAP);
+    var toggleWidth = measureInlineTextWidth(state.toggle, toggleLabel);
+    var textWidth = measureInlineTextWidth(state.content, text);
+    var fillerWidth = Math.max(
+      state.contentWidth - (textWidth + suffixWidth + gapWidth + toggleWidth),
+      0
+    );
+
+    return {
+      text: text,
+      suffixText: suffixText,
+      suffixWidth: suffixWidth,
+      fillerWidth: fillerWidth,
+      toggleLabel: toggleLabel,
+      isExpanded: isExpanded
+    };
+  }
+
+  function buildCollapsedLines(state) {
+    var lines = [];
+    var index = 0;
+    var lineNumber = 0;
+
+    while (lineNumber < ABSTRACT_PREVIEW_LINES - 1) {
+      var end = findLineEnd(state, index, state.contentWidth);
+      lines.push({
+        text: normalizeLineSlice(state.characters.slice(skipWrapSpaces(state, index), end).join(''))
+      });
+      index = end;
+      lineNumber += 1;
+    }
+
+    var lastStart = skipWrapSpaces(state, index);
+    var lastEnd = findLineEnd(state, lastStart, state.contentWidth - state.collapsedTailWidth);
+    var lastText = normalizeLineSlice(state.characters.slice(lastStart, lastEnd).join(''));
+    lines.push(buildLine(state, lastText, ABSTRACT_COLLAPSED_SUFFIX, 'Show more', false));
+
+    return lines;
+  }
+
+  function buildExpandedLines(state) {
+    var lines = [];
+    var index = 0;
+    var lastLineWidth = state.contentWidth - state.expandedTailWidth;
+
+    while (measureInlineTextWidth(state.content, getRemainingText(state, index)) > lastLineWidth) {
+      var end = findLineEnd(state, index, state.contentWidth);
+      lines.push({
+        text: normalizeLineSlice(state.characters.slice(skipWrapSpaces(state, index), end).join(''))
+      });
+      index = end;
+    }
+
+    lines.push(buildLine(state, getRemainingText(state, index), ABSTRACT_EXPANDED_SUFFIX, 'Show less', true));
+    return lines;
+  }
+
+  function countWrappedLines(state) {
+    var count = 0;
+    var index = 0;
+
+    while (index < state.characters.length) {
+      var end = findLineEnd(state, index, state.contentWidth);
+      if (end <= index) {
+        break;
+      }
+      index = end;
+      count += 1;
+    }
+
+    return count;
+  }
+
+  function appendAbstractLine(state, line) {
+    var lineNode = document.createElement('span');
+    lineNode.className = 'abstract-line';
+
+    if (!line.toggleLabel) {
+      lineNode.textContent = line.text;
+      state.text.appendChild(lineNode);
+      return;
+    }
+
+    var lineText = document.createElement('span');
+    var filler = document.createElement('span');
+    var gap = document.createElement('span');
+    lineText.className = 'abstract-line-text';
+    filler.className = 'abstract-filler';
+    gap.className = 'abstract-gap';
+    lineText.textContent = line.text;
+    gap.textContent = ABSTRACT_TOGGLE_GAP;
+
+    lineNode.classList.add('abstract-line--tail');
+    state.suffix.textContent = line.suffixText;
+    state.suffix.style.width = line.suffixWidth + 'px';
+    filler.style.width = line.fillerWidth + 'px';
+    state.toggle.textContent = line.toggleLabel;
+    state.toggle.setAttribute('aria-expanded', line.isExpanded ? 'true' : 'false');
+
+    lineNode.appendChild(lineText);
+    lineNode.appendChild(state.suffix);
+    lineNode.appendChild(filler);
+    lineNode.appendChild(gap);
+    lineNode.appendChild(state.toggle);
+    state.text.appendChild(lineNode);
+  }
+
+  function renderLines(state, lines) {
+    state.text.textContent = '';
+    lines.forEach(function(line) {
+      appendAbstractLine(state, line);
+    });
+  }
+
+  function renderAbstract(container) {
+    var state = abstractStates.get(container);
+    if (!state) {
+      return;
+    }
+
+    container.classList.toggle('is-truncatable', state.isTruncatable);
+    container.classList.toggle('is-expanded', state.isTruncatable && state.expanded);
+    container.classList.toggle('is-collapsed', state.isTruncatable && !state.expanded);
+
+    container.style.setProperty('--abstract-line-height', state.lineHeight + 'px');
+    state.reserve.style.display = 'none';
+    state.tail.style.display = 'none';
+    state.content.style.height = 'auto';
+    state.content.style.overflow = 'visible';
+
+    if (!state.isTruncatable) {
+      state.text.textContent = state.fullText;
+      state.toggle.setAttribute('aria-expanded', 'false');
+      return;
+    }
+
+    renderLines(state, state.expanded ? state.expandedLines : state.collapsedLines);
+  }
+
+  function updateAbstractLayout(container) {
+    var state = abstractStates.get(container);
+    if (!state) {
+      return;
+    }
+
+    if (!container.clientWidth) {
+      return;
+    }
+
+    state.lineHeight = resolveLineHeight(state.content);
+    state.contentWidth = state.content.getBoundingClientRect().width;
+    state.collapsedTailWidth = getTailWidth(state, ABSTRACT_COLLAPSED_SUFFIX, 'Show more');
+    state.expandedTailWidth = getTailWidth(state, ABSTRACT_EXPANDED_SUFFIX, 'Show less');
+
+    state.isTruncatable = countWrappedLines(state) > ABSTRACT_PREVIEW_LINES;
+
+    if (!state.isTruncatable) {
+      state.expanded = false;
+      state.collapsedLines = [];
+      state.expandedLines = [];
+    } else {
+      state.collapsedLines = buildCollapsedLines(state);
+      state.expandedLines = buildExpandedLines(state);
+    }
+
+    renderAbstract(container);
+  }
+
+  function scheduleAbstractLayout() {
+    if (abstractResizeFrame !== null) {
+      cancelAnimationFrame(abstractResizeFrame);
+    }
+
+    abstractResizeFrame = requestAnimationFrame(function () {
+      abstractResizeFrame = null;
+      document.querySelectorAll('.abstract-container').forEach(function(container) {
+        updateAbstractLayout(container);
+      });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.abstract-container').forEach(function(container) {
+      var content = container.querySelector('.abstract-content');
+      var text = content.querySelector('.abstract-text');
+      var toggle = container.querySelector('.abstract-toggle');
+      var tail = document.createElement('span');
+      var suffix = document.createElement('span');
+      var reserve = document.createElement('span');
+      var fullText = normalizeAbstractText(text.textContent);
+
+      tail.className = 'abstract-tail';
+      suffix.className = 'abstract-suffix';
+      reserve.className = 'abstract-reserve';
+      tail.appendChild(suffix);
+      tail.appendChild(toggle);
+      content.insertBefore(reserve, text);
+      container.appendChild(tail);
+
+      text.textContent = fullText;
+      abstractStates.set(container, {
+        content: content,
+        text: text,
+        toggle: toggle,
+        tail: tail,
+        suffix: suffix,
+        reserve: reserve,
+        fullText: fullText,
+        characters: Array.from(fullText),
+        contentWidth: 0,
+        collapsedTailWidth: 0,
+        expandedTailWidth: 0,
+        collapsedLines: [],
+        expandedLines: [],
+        lineHeight: 0,
+        expanded: false,
+        isTruncatable: false
+      });
+    });
+
+    scheduleAbstractLayout();
+
+    window.addEventListener('resize', scheduleAbstractLayout);
+
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function() {
+        scheduleAbstractLayout();
+      });
+    }
+  });
   </script>
 
 
@@ -125,7 +466,7 @@
               <p style="text-align:center">
                 <a href="mailto:shen.ruihong@stu.pku.edu.cn" target="_blank">Email</a> &nbsp/&nbsp
                 <!-- <a href="https://scholar.google.com/citations?user=Inr-6rEAAAAJ" target="_blank">Google Scholar</a> &nbsp/&nbsp -->
-                <a href="https://github.com/ruihong04/" target="_blank">Github</a>&nbsp/&nbsp
+                <a href="https://github.com/ruihong04/" target="_blank">Github</a> &nbsp/&nbsp
                 <!-- <a href="https://twitter.com/HaoranGeng2/" target="_blank">Twitter</a>&nbsp/&nbsp -->
                 <a href="https://www.xiaohongshu.com/user/profile/68f247b20000000037001ebf" target="_blank">Xiaohongshu</a>
               </p>
@@ -168,14 +509,26 @@
 
   
 
+  <!-- News -->
+  <table style="width:90%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
+    <br>
+    <heading><span class="heading-emoji">📰</span><span class="heading-text">News</span></heading>
+      <td style="padding:0px;width:100%;vertical-align:middle">
+          <p>
+            <li>[2026/03] I will visit the <a href="https://ccvl.jhu.edu/" target="_blank"><d>CCVL lab</d></a> at JHU this summer, honored to be advised by <a href="https://www.cs.jhu.edu/~ayuille1/" target="_blank">
+              <d>Prof. Alan Yuille</d></a> and <a href="https://beckschen.github.io/" target="_blank">
+              <d>Jieneng Chen</d></a>.</li>
+          </p>
+          <p>
+            <li>[2026/02] Two papers are accepted by <strong>ICLR</strong> 2026.</li>
+          </p>
+      </td>
+  </tbody></table>
+
   <!-- Research -->
   <style>
     .highlight {
       background-color: #ffffd0;
-    }
-    /* Make highlight padding smaller and override inline styles */
-    .highlight td {
-      padding: 10px !important;
     }
     /* Add rounded corners to the highlight */
     .highlight td:first-child {
@@ -187,57 +540,10 @@
       border-bottom-right-radius: 10px;
     }
 
-    /* Abstract collapse styles */
-    .abstract-container {
-      position: relative;
-    }
-    .abstract-content {
-      overflow: hidden;
-      transition: max-height 0.3s ease-out;
-      line-height: 1.25em; /* Ensure consistent line height */
-    }
-    .abstract-content > p {
-      margin: 0;
-      padding: 0;
-      display: inline; /* Or block, but margin 0 is key */
-    }
-    .abstract-content.collapsed {
-      max-height: 6em; /* Exactly 4 lines */
-    }
-    
-    /* Show More button styles */
-    .abstract-toggle {
-      cursor: pointer;
-      color: #ec690be3;
-      font-size: 0.9em;
-      margin-top: 5px;
-      display: block; /* Default display for Show Less */
-      text-align: right;
-    }
-
-    /* When collapsed, position absolute at bottom right */
-    .abstract-content.collapsed + .abstract-toggle {
-      position: absolute;
-      bottom: 0;
-      right: 0;
-      margin-top: 0;
-      padding-left: 10px;
-      background-color: white; /* Cover text behind */
-    }
-
-    /* Highlight row background adjustments */
-    tr.highlight .abstract-content.collapsed + .abstract-toggle {
-      background-color: #ffffd0;
-    }
-
-    .abstract-toggle:hover {
-      color: #f09228;
-      text-decoration: underline;
-    }
   </style>
   <table style="width:100%;max-width:800px;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
     <br>
-    <heading>Research</heading>
+    <heading><span class="heading-emoji">🧠</span><span class="heading-text">Research</span></heading>
     <br>
     <p style="font-size:1em;margin-top:8px;margin-bottom:2px;">
       <sup>*</sup> Joint first author <span style="display:inline-block;width:1.5em;"></span>
@@ -250,7 +556,7 @@
       </td>
       <td style="padding:20px;width:70%;vertical-align:middle">
         <a href="https://neuralgaussianforcefield.github.io/" target="_blank">
-          <papertitle><br>Learning Physics-Grounded 4D Dynamics with Neural Gaussian Force Fields</papertitle>
+          <papertitle>Learning Physics-Grounded 4D Dynamics with Neural Gaussian Force Fields</papertitle>
         </a>
       <br>
         <a class="a2" href="https://lishiqianhugh.github.io/" target="_blank">Shiqian Li</a>*,
@@ -266,6 +572,8 @@
         /
         <a href="https://openreview.net/forum?id=KxvboPqav6" target="_blank">OpenReview</a>
         /
+        <a href="https://pku.ai/publication/physics2026iclr/poster.pdf" target="_blank">Poster</a>
+        /
         <a href="https://vimeo.com/1126658030" target="_blank">Video</a>
         /
         <a href="https://github.com/lishiqianhugh/NeuralGaussianForceField" target="_blank">Github</a>
@@ -275,15 +583,17 @@
         <em>ICLR 2026</em>
         <p></p>
         <div class="abstract-container">
-        <div class="abstract-content collapsed">
-        <p> Predicting physical dynamics from visual data remains a fundamental challenge in AI, as it requires both accurate scene understanding and robust physics reasoning.
+        <div class="abstract-content">
+        <span class="abstract-text">
+        Predicting physical dynamics from visual data remains a fundamental challenge in AI, as it requires both accurate scene understanding and robust physics reasoning.
           While recent video generation models achieve impressive visual quality, they lack explicit physics modeling and frequently violate fundamental laws like gravity and object permanence. Existing approaches combining 3D Gaussian splatting with traditional physics engines achieve physical consistency but suffer from prohibitive computational costs and struggle with complex real-world multi-object interactions.
           The key challenge lies in developing a unified framework that learns physics-grounded representations directly from visual observations while maintaining computational efficiency and generalization capability.
           Here we introduce NGFF, an end-to-end neural framework that learns explicit force fields from 3D Gaussian representations to generate interactive, physically realistic 4D videos from multi-view RGB inputs, achieving two orders of magnitude speedup over prior Gaussian simulators.
           Through explicit force field modeling, NGFF demonstrates superior spatial, temporal, and compositional generalization compared to SOTA methods, including Veo3 and NVIDIA Cosmos, while enabling robust sim-to-real transfer. Comprehensive evaluation on our GSCollision dataset---640k rendered physical videos (~4TB) spanning diverse materials and complex multi-object interactions---validates NGFF's effectiveness across challenging scenarios.
-          Our results demonstrate that NGFF provides an effective bridge between visual perception and physical understanding, advancing video prediction toward physics-grounded world models with interactive capabilities. </p>
+          Our results demonstrate that NGFF provides an effective bridge between visual perception and physical understanding, advancing video prediction toward physics-grounded world models with interactive capabilities.
+        </span>
         </div>
-        <a class="abstract-toggle" onclick="toggleAbstract(this)">Show more</a>
+        <a class="abstract-toggle" onclick="event.stopPropagation(); toggleAbstract(this)">Show more</a>
         </div>
       </td>
     </tr>
@@ -295,12 +605,12 @@
       </td>
       <td style="padding:20px;width:70%;vertical-align:middle">
         <a href="https://neuralforcefield.github.io/" target="_blank">
-          <papertitle><br>Neural Force Field: Few shot learning of generalized physical reasoning</papertitle>
+          <papertitle>Neural Force Field: Few shot learning of generalized physical reasoning</papertitle>
         </a>
       <br>
         <a class="a2" href="https://lishiqianhugh.github.io/" target="_blank">Shiqian Li</a>*,
         <a class="a2" href="https://ruihong04.github.io/" target="_blank"><strong>Ruihong Shen</strong>*</a>,
-        <a class="a2" href="https://taoyaoyu.me/" target="_blank">Yaoyu Tao</a><span>&#8224;</span>  
+        <a class="a2" href="https://taoyaoyu.me/" target="_blank">Yaoyu Tao</a><span>&#8224;</span>,
         <a class="a2" href="http://wellyzhang.github.io/" target="_blank">Chi Zhang</a><span>&#8224;</span>,
         <a class="a2" href="https://yzhu.io/" target="_blank">Yixin Zhu</a><span>&#8224;</span>
         <br>
@@ -310,6 +620,8 @@
         /
         <a href="https://openreview.net/forum?id=wNtdVoqEmr" target="_blank">OpenReview</a>
         /
+        <a href="http://pku.ai/publication/intuitive2026iclr/poster.pdf" target="_blank">Poster</a>
+        /
         <a href="https://vimeo.com/1055247476">Video</a>
         /
         <a href="https://github.com/lishiqianhugh/NeuralForceField" target="_blank">Github</a>
@@ -317,12 +629,14 @@
         <em>ICLR 2026</em>
         <p></p>
         <div class="abstract-container">
-        <div class="abstract-content collapsed">
-        <p> We present NFF, a modeling framework built on NODE that learns interpretable force field representations which can be efficiently integrated through an ODE solver to predict object trajectories.
+        <div class="abstract-content">
+        <span class="abstract-text">
+        We present NFF, a modeling framework built on NODE that learns interpretable force field representations which can be efficiently integrated through an ODE solver to predict object trajectories.
           Unlike existing approaches that rely on high-dimensional latent spaces, NFF captures fundamental physical concepts such as gravity, support, and collision in an interpretable manner. Experiments on two challenging physical reasoning tasks demonstrate that NFF, trained with only a few examples, achieves strong generalization to unseen scenarios.
-          This physics-grounded representation enables efficient forward-backward planning and rapid adaptation through interactive refinement.</p>
+          This physics-grounded representation enables efficient forward-backward planning and rapid adaptation through interactive refinement.
+        </span>
         </div>
-        <a class="abstract-toggle" onclick="toggleAbstract(this)">Show more</a>
+        <a class="abstract-toggle" onclick="event.stopPropagation(); toggleAbstract(this)">Show more</a>
         </div>
       </td>
     </tr>
@@ -336,7 +650,7 @@
   <table style="width:90%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
       <tr>
         <br>
-        <heading>Services</heading>
+        <heading><span class="heading-emoji">🛠️</span><span class="heading-text">Services</span></heading>
         <br>
       <td style="padding:0px;width:100%;vertical-align:middle">
         <p>
@@ -350,7 +664,7 @@
 
   <table width="100%" align="center" border="0" cellpadding="10"><tbody>
       <br>
-          <heading>Experience</heading>
+          <heading><span class="heading-emoji">🏛️</span><span class="heading-text">Experience</span></heading>
       <!-- <br> -->
       <tr>
         <td style="padding-left:27px;padding-right:20px;width:20%;vertical-align:middle"><img src="images/experience/core_lab.png", width="108"></td>
@@ -396,7 +710,7 @@
   <!-- Selected Awards and Honors -->
   <table style="width:90%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
     <br>
-    <heading>Selected Awards</heading>
+    <heading><span class="heading-emoji">🏆</span><span class="heading-text">Selected Awards</span></heading>
       <td style="padding:0px;width:100%;vertical-align:middle">
           <p>
             <li>2025: Junyuan Scholarship</li> 
@@ -419,7 +733,7 @@
   <!-- Miscellaneous -->
   <table style="width:90%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
           <br>
-          <heading>Miscellaneous</heading>
+          <heading><span class="heading-emoji">🌿</span><span class="heading-text">Miscellaneous</span></heading>
           <br>
           <p>
             Just a part showing photos recently taken. Hope you enjoy them :) 🥺🥺🥺
@@ -428,12 +742,13 @@
           <tr>
             <td style="padding:0px;width:100%;vertical-align:middle">
               <div id="gallery-container">
-                <div id="gallery">
+                <div id="gallery-viewport">
+                  <div id="gallery" aria-live="polite"></div>
                 </div>
-    
+
                 <!-- Navigation Controls -->
-                <div id="prev" class="gallery-control">❮</div>
-                <div id="next" class="gallery-control">❯</div>
+                <button id="prev" class="gallery-control" type="button" aria-label="Show previous photos">❮</button>
+                <button id="next" class="gallery-control" type="button" aria-label="Show next photos">❯</button>
               </div>
             </td>
           </tr>
@@ -444,52 +759,140 @@
   </tbody></table>
   
   <script>
-    // Generate gallery items dynamically
-    const baseUrl = 'https://homepage-ruihong.oss-cn-beijing.aliyuncs.com/photos/';
-    const folder = '20251024';
-    const numImages = 12;
-    const gallery = document.getElementById('gallery');
-    for (let i = 1; i <= numImages; i++) {
-      const itemDiv = document.createElement('div');
-      itemDiv.className = 'gallery-item';
-      const img = document.createElement('img');
-      img.src = `${baseUrl}${folder}/photo${i}.jpg`;
-      img.alt = `Gallery Image ${i}`;
-      itemDiv.appendChild(img);
-      gallery.appendChild(itemDiv);
-    }
+    (() => {
+      const baseUrl = 'https://homepage-ruihong.oss-cn-beijing.aliyuncs.com/photos/';
+      const folder = '20251024';
+      const numImages = 12;
+      const autoAdvanceDelay = 5000;
+      const transitionDurationMs = 500;
+      const gallery = document.getElementById('gallery');
+      const galleryContainer = document.getElementById('gallery-container');
+      const prevButton = document.getElementById('prev');
+      const nextButton = document.getElementById('next');
 
-    // JavaScript for gallery navigation
+      const photos = Array.from({ length: numImages }, (_, index) => ({
+        src: `${baseUrl}${folder}/photo${index + 1}.jpg`,
+        alt: `Gallery Image ${index + 1}`
+      }));
 
-    let currentIndex = 0;
-    const galleryItems = document.querySelectorAll('.gallery-item');
-    const totalItems = galleryItems.length;
-
-    const prevButton = document.getElementById('prev');
-    const nextButton = document.getElementById('next');
-
-    function showImages(index) {
-      // Ensure index is within bounds
-      if (index >= totalItems - 1) {
-        currentIndex = 0;
-      } else if (index < 0) {
-        currentIndex = totalItems - 2;
-      } else {
-        currentIndex = index;
+      if (photos.length < 2) {
+        return;
       }
 
-      // Update the gallery's transform property to shift to the correct set of 2 images
-      document.getElementById('gallery').style.transform = `translateX(-${currentIndex * 50}%)`;
-    }
+      const loopedPhotos = [
+        photos[photos.length - 1],
+        ...photos,
+        photos[0],
+        photos[1]
+      ];
 
-    // Attach event listeners to navigation controls
-    prevButton.addEventListener('click', () => showImages(currentIndex - 1));
-    nextButton.addEventListener('click', () => showImages(currentIndex + 1));
+      let currentIndex = 0;
+      let isTransitioning = false;
+      let autoAdvanceTimer = null;
+      const queuedMoves = [];
 
-    // Optionally, you could also auto-advance images every few seconds
-    setInterval(() => {
-      showImages(currentIndex + 1);
-    }, 5000); // Change every 5 seconds
+      function buildGalleryItem(photo, index) {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'gallery-item';
+
+        const img = document.createElement('img');
+        img.src = photo.src;
+        img.alt = photo.alt;
+        img.decoding = 'async';
+        img.loading = index < 4 ? 'eager' : 'lazy';
+
+        itemDiv.appendChild(img);
+        return itemDiv;
+      }
+
+      function syncPosition(animate = true) {
+        gallery.style.transition = animate ? `transform ${transitionDurationMs}ms ease` : 'none';
+        gallery.style.transform = `translateX(-${(currentIndex + 1) * 50}%)`;
+
+        if (!animate) {
+          void gallery.offsetWidth;
+          gallery.style.transition = `transform ${transitionDurationMs}ms ease`;
+        }
+      }
+
+      function move(delta) {
+        if (isTransitioning) {
+          queuedMoves.push(delta);
+          return;
+        }
+
+        isTransitioning = true;
+        currentIndex += delta;
+        syncPosition(true);
+      }
+
+      function flushQueuedMove() {
+        if (!queuedMoves.length) {
+          return;
+        }
+
+        const nextDelta = queuedMoves.shift();
+        requestAnimationFrame(() => {
+          move(nextDelta);
+        });
+      }
+
+      function resetAutoAdvance() {
+        window.clearInterval(autoAdvanceTimer);
+        autoAdvanceTimer = window.setInterval(() => {
+          move(1);
+        }, autoAdvanceDelay);
+      }
+
+      function pauseAutoAdvance() {
+        window.clearInterval(autoAdvanceTimer);
+      }
+
+      loopedPhotos.forEach((photo, index) => {
+        gallery.appendChild(buildGalleryItem(photo, index));
+      });
+
+      syncPosition(false);
+
+      prevButton.addEventListener('click', () => {
+        move(-1);
+        resetAutoAdvance();
+      });
+
+      nextButton.addEventListener('click', () => {
+        move(1);
+        resetAutoAdvance();
+      });
+
+      gallery.addEventListener('transitionend', (event) => {
+        if (event.propertyName !== 'transform') {
+          return;
+        }
+
+        if (currentIndex < 0) {
+          currentIndex = photos.length - 1;
+          syncPosition(false);
+        } else if (currentIndex >= photos.length) {
+          currentIndex = 0;
+          syncPosition(false);
+        }
+
+        isTransitioning = false;
+        flushQueuedMove();
+      });
+
+      galleryContainer.addEventListener('mouseenter', pauseAutoAdvance);
+      galleryContainer.addEventListener('mouseleave', resetAutoAdvance);
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          pauseAutoAdvance();
+        } else {
+          resetAutoAdvance();
+        }
+      });
+
+      resetAutoAdvance();
+    })();
   </script>
   
 
