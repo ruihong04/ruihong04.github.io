@@ -150,6 +150,90 @@ name {
   font-size: 28px;
 }
 
+.intro-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 32%);
+  grid-template-areas:
+    "name photo"
+    "copy photo"
+    "links photo";
+  align-items: center;
+  column-gap: 0;
+  width: 100%;
+  margin-top: 2em;
+}
+
+.intro-name {
+  grid-area: name;
+  margin: 0 0 12px;
+  text-align: center;
+  padding: 0 2%;
+}
+
+.intro-copy {
+  grid-area: copy;
+  margin: 0;
+  text-align: justify;
+  padding: 0 2%;
+}
+
+.intro-links {
+  grid-area: links;
+  margin: 12px 0 0;
+  text-align: center;
+  padding: 0 2%;
+}
+
+.intro-photo-cell {
+  grid-area: photo;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  padding: 0;
+}
+
+.intro-photo {
+  display: block;
+  width: 100%;
+  max-width: 80%;
+  height: auto;
+  margin: 0 auto;
+  padding: 1%;
+}
+
+.service-list {
+  margin: 1em 0 0;
+  padding-left: 20px;
+}
+
+.service-entry {
+  margin: 0;
+}
+
+.service-item {
+  display: grid;
+  grid-template-columns: minmax(120px, 150px) minmax(0, 1fr);
+  column-gap: 16px;
+  align-items: start;
+}
+
+.service-role {
+  display: block;
+  font-weight: 700;
+}
+
+.service-details {
+  display: block;
+  min-width: 0;
+}
+
+.service-secondary {
+  display: block;
+  margin-top: 2px;
+}
+
 abs {
   font-family: 'Lato', Verdana, Helvetica, sans-serif;
   font-size: 14px;
@@ -395,6 +479,40 @@ tr.highlight .abstract-container {
 }
 
 @media (max-width: 700px) {
+  .intro-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "name"
+      "photo"
+      "copy"
+      "links";
+    row-gap: 12px;
+  }
+
+  .intro-name,
+  .intro-copy,
+  .intro-links {
+    padding: 0;
+  }
+
+  .intro-photo-cell {
+    padding: 0 0 4px;
+  }
+
+  .intro-copy {
+    text-align: left;
+  }
+
+  .intro-photo {
+    width: 40%;
+    max-width: 220px;
+  }
+
+  .service-item {
+    grid-template-columns: 1fr;
+    row-gap: 4px;
+  }
+
   .research-item {
     grid-template-columns: 1fr;
     gap: 16px;
