@@ -1,952 +1,522 @@
-<!DOCTYPE HTML>
+<!doctype html>
 <html lang="en">
-
-<!-- head -->
-<head>
-  <script>
-    (function () {
-        var a_idx = 0;
-        window.onclick = function (event) {
-            var a = new Array("🥺","😇","😂","🥰","🥹", "🥳", "😯", "😈", "😹");
-
-            var heart = document.createElement("b");
-            heart.onselectstart = new Function('event.returnValue=false');
-
-            document.body.appendChild(heart).innerHTML = a[a_idx];
-            a_idx = (a_idx + 1) % a.length;
-            heart.style.cssText = "position: fixed;left:-100%;";
-
-            var f = 16, 
-                x = event.clientX - f / 2, 
-                y = event.clientY - f,
-                c = randomColor(), 
-                a = 1,
-                s = 1.2; 
-
-            var timer = setInterval(function () { 
-                if (a <= 0) {
-                    document.body.removeChild(heart);
-                    clearInterval(timer);
-                } else {
-                    heart.style.cssText = "font-size:16px;cursor: default;position: fixed;color:" +
-                        c + ";left:" + x + "px;top:" + y + "px;opacity:" + a + ";transform:scale(" +
-                        s + ");";
-
-                    y--;
-                    a -= 0.016;
-                    s += 0.002;
-                }
-            }, 15)
-
-        }
-        function randomColor() {
-
-            return "rgb(" + (~~(Math.random() * 255)) + "," + (~~(Math.random() * 255)) + "," + (~~(Math
-            .random() * 255)) + ")";
-
-        }
-    }());
-
-  </script>
-
-
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  <title>Ruihong Shen   |   沈睿弘</title>
-
-
-
-  <meta name="author" content="Ruihong Shen">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  
-  <link rel="stylesheet" type="text/css" href="stylesheet.css">
-	<link rel="icon" type="image/png" href="images/icon.jpg">
-</head>
-
-<!-- bib hide -->
-<script type="text/javascript">
-  var ABSTRACT_PREVIEW_LINES = 4;
-  var ABSTRACT_COLLAPSED_SUFFIX = '...';
-  var ABSTRACT_EXPANDED_SUFFIX = '';
-  var ABSTRACT_TOGGLE_GAP = '    ';
-  var ABSTRACT_TAIL_WIDTH_BUFFER = 0;
-  var abstractStates = new WeakMap();
-  var abstractMeasureNode = null;
-  var abstractResizeFrame = null;
-
-  function hideshow(which){
-  if (!document.getElementById)
-  return
-  if (which.style.display=="block")
-  which.style.display="none"
-  else
-  which.style.display="block"
-  }
-
-  function toggleAbstract(element) {
-    var container = element.closest('.abstract-container');
-    var state = abstractStates.get(container);
-    if (!state || !state.isTruncatable) {
-      return;
-    }
-
-    state.expanded = !state.expanded;
-    renderAbstract(container);
-  }
-
-  function normalizeAbstractText(text) {
-    return text.replace(/\s+/g, ' ').trim();
-  }
-
-  function resolveLineHeight(reference) {
-    var styles = window.getComputedStyle(reference);
-    var lineHeight = parseFloat(styles.lineHeight);
-    if (!Number.isFinite(lineHeight)) {
-      lineHeight = parseFloat(styles.fontSize) * 1.2;
-    }
-    return lineHeight;
-  }
-
-  function getAbstractMeasureNode(reference) {
-    if (!abstractMeasureNode) {
-      abstractMeasureNode = document.createElement('div');
-      abstractMeasureNode.style.position = 'absolute';
-      abstractMeasureNode.style.visibility = 'hidden';
-      abstractMeasureNode.style.pointerEvents = 'none';
-      abstractMeasureNode.style.zIndex = '-1';
-      abstractMeasureNode.style.left = '-9999px';
-      abstractMeasureNode.style.top = '0';
-      abstractMeasureNode.style.whiteSpace = 'normal';
-      abstractMeasureNode.style.wordBreak = 'normal';
-      abstractMeasureNode.style.overflowWrap = 'break-word';
-      document.body.appendChild(abstractMeasureNode);
-    }
-
-    var styles = window.getComputedStyle(reference);
-    abstractMeasureNode.style.font = styles.font;
-    abstractMeasureNode.style.fontFamily = styles.fontFamily;
-    abstractMeasureNode.style.fontSize = styles.fontSize;
-    abstractMeasureNode.style.fontWeight = styles.fontWeight;
-    abstractMeasureNode.style.fontStyle = styles.fontStyle;
-    abstractMeasureNode.style.letterSpacing = styles.letterSpacing;
-    abstractMeasureNode.style.lineHeight = styles.lineHeight;
-    abstractMeasureNode.style.textTransform = styles.textTransform;
-
-    return abstractMeasureNode;
-  }
-
-  function measureInlineTextWidth(reference, text) {
-    var measureNode = getAbstractMeasureNode(reference);
-    measureNode.style.width = 'auto';
-    measureNode.style.whiteSpace = 'pre';
-    measureNode.textContent = text;
-    return measureNode.getBoundingClientRect().width;
-  }
-
-  function getTailWidth(state, suffixText, toggleLabel) {
-    return (
-      measureInlineTextWidth(state.content, suffixText) +
-      measureInlineTextWidth(state.content, ABSTRACT_TOGGLE_GAP) +
-      measureInlineTextWidth(state.toggle, toggleLabel) +
-      ABSTRACT_TAIL_WIDTH_BUFFER
-    );
-  }
-
-  function normalizeLineSlice(text) {
-    return text.replace(/^\s+/g, '').replace(/\s+$/g, '');
-  }
-
-  function getRemainingText(state, startIndex) {
-    return state.characters.slice(startIndex).join('').replace(/^\s+/g, '');
-  }
-
-  function skipWrapSpaces(state, index) {
-    while (index < state.characters.length && state.characters[index] === ' ') {
-      index += 1;
-    }
-
-    return index;
-  }
-
-  function findLineEnd(state, startIndex, maxWidth) {
-    var start = skipWrapSpaces(state, startIndex);
-    if (start >= state.characters.length) {
-      return start;
-    }
-
-    var low = start;
-    var high = state.characters.length;
-
-    while (low < high) {
-      var mid = Math.ceil((low + high) / 2);
-      var candidate = normalizeLineSlice(state.characters.slice(start, mid).join(''));
-
-      if (measureInlineTextWidth(state.content, candidate) <= maxWidth) {
-        low = mid;
-      } else {
-        high = mid - 1;
-      }
-    }
-
-    if (low === start) {
-      return Math.min(start + 1, state.characters.length);
-    }
-
-    return low;
-  }
-
-  function buildLine(state, text, suffixText, toggleLabel, isExpanded) {
-    var suffixWidth = measureInlineTextWidth(state.content, suffixText);
-    var gapWidth = measureInlineTextWidth(state.content, ABSTRACT_TOGGLE_GAP);
-    var toggleWidth = measureInlineTextWidth(state.toggle, toggleLabel);
-    var textWidth = measureInlineTextWidth(state.content, text);
-    var fillerWidth = Math.max(
-      state.contentWidth - (textWidth + suffixWidth + gapWidth + toggleWidth),
-      0
-    );
-
-    return {
-      text: text,
-      suffixText: suffixText,
-      suffixWidth: suffixWidth,
-      fillerWidth: fillerWidth,
-      toggleLabel: toggleLabel,
-      isExpanded: isExpanded
-    };
-  }
-
-  function buildCollapsedLines(state) {
-    var lines = [];
-    var index = 0;
-    var lineNumber = 0;
-
-    while (lineNumber < ABSTRACT_PREVIEW_LINES - 1) {
-      var end = findLineEnd(state, index, state.contentWidth);
-      lines.push({
-        text: normalizeLineSlice(state.characters.slice(skipWrapSpaces(state, index), end).join(''))
-      });
-      index = end;
-      lineNumber += 1;
-    }
-
-    var lastStart = skipWrapSpaces(state, index);
-    var lastEnd = findLineEnd(state, lastStart, state.contentWidth - state.collapsedTailWidth);
-    var lastText = normalizeLineSlice(state.characters.slice(lastStart, lastEnd).join(''));
-    lines.push(buildLine(state, lastText, ABSTRACT_COLLAPSED_SUFFIX, 'Show more', false));
-
-    return lines;
-  }
-
-  function buildExpandedLines(state) {
-    var lines = [];
-    var index = 0;
-    var lastLineWidth = state.contentWidth - state.expandedTailWidth;
-
-    while (measureInlineTextWidth(state.content, getRemainingText(state, index)) > lastLineWidth) {
-      var end = findLineEnd(state, index, state.contentWidth);
-      lines.push({
-        text: normalizeLineSlice(state.characters.slice(skipWrapSpaces(state, index), end).join(''))
-      });
-      index = end;
-    }
-
-    lines.push(buildLine(state, getRemainingText(state, index), ABSTRACT_EXPANDED_SUFFIX, 'Show less', true));
-    return lines;
-  }
-
-  function countWrappedLines(state) {
-    var count = 0;
-    var index = 0;
-
-    while (index < state.characters.length) {
-      var end = findLineEnd(state, index, state.contentWidth);
-      if (end <= index) {
-        break;
-      }
-      index = end;
-      count += 1;
-    }
-
-    return count;
-  }
-
-  function appendAbstractLine(state, line) {
-    var lineNode = document.createElement('span');
-    lineNode.className = 'abstract-line';
-
-    if (!line.toggleLabel) {
-      lineNode.textContent = line.text;
-      state.text.appendChild(lineNode);
-      return;
-    }
-
-    var lineText = document.createElement('span');
-    var filler = document.createElement('span');
-    var gap = document.createElement('span');
-    lineText.className = 'abstract-line-text';
-    filler.className = 'abstract-filler';
-    gap.className = 'abstract-gap';
-    lineText.textContent = line.text;
-    gap.textContent = ABSTRACT_TOGGLE_GAP;
-
-    lineNode.classList.add('abstract-line--tail');
-    state.suffix.textContent = line.suffixText;
-    state.suffix.style.width = line.suffixWidth + 'px';
-    filler.style.width = line.fillerWidth + 'px';
-    state.toggle.textContent = line.toggleLabel;
-    state.toggle.setAttribute('aria-expanded', line.isExpanded ? 'true' : 'false');
-
-    lineNode.appendChild(lineText);
-    lineNode.appendChild(state.suffix);
-    lineNode.appendChild(filler);
-    lineNode.appendChild(gap);
-    lineNode.appendChild(state.toggle);
-    state.text.appendChild(lineNode);
-  }
-
-  function renderLines(state, lines) {
-    state.text.textContent = '';
-    lines.forEach(function(line) {
-      appendAbstractLine(state, line);
-    });
-  }
-
-  function renderAbstract(container) {
-    var state = abstractStates.get(container);
-    if (!state) {
-      return;
-    }
-
-    container.classList.toggle('is-truncatable', state.isTruncatable);
-    container.classList.toggle('is-expanded', state.isTruncatable && state.expanded);
-    container.classList.toggle('is-collapsed', state.isTruncatable && !state.expanded);
-
-    container.style.setProperty('--abstract-line-height', state.lineHeight + 'px');
-    state.reserve.style.display = 'none';
-    state.tail.style.display = 'none';
-    state.content.style.height = 'auto';
-    state.content.style.overflow = 'visible';
-
-    if (!state.isTruncatable) {
-      state.text.textContent = state.fullText;
-      state.toggle.setAttribute('aria-expanded', 'false');
-      return;
-    }
-
-    renderLines(state, state.expanded ? state.expandedLines : state.collapsedLines);
-  }
-
-  function updateAbstractLayout(container) {
-    var state = abstractStates.get(container);
-    if (!state) {
-      return;
-    }
-
-    if (!container.clientWidth) {
-      return;
-    }
-
-    state.lineHeight = resolveLineHeight(state.content);
-    state.contentWidth = state.content.getBoundingClientRect().width;
-    state.collapsedTailWidth = getTailWidth(state, ABSTRACT_COLLAPSED_SUFFIX, 'Show more');
-    state.expandedTailWidth = getTailWidth(state, ABSTRACT_EXPANDED_SUFFIX, 'Show less');
-
-    state.isTruncatable = countWrappedLines(state) > ABSTRACT_PREVIEW_LINES;
-
-    if (!state.isTruncatable) {
-      state.expanded = false;
-      state.collapsedLines = [];
-      state.expandedLines = [];
-    } else {
-      state.collapsedLines = buildCollapsedLines(state);
-      state.expandedLines = buildExpandedLines(state);
-    }
-
-    renderAbstract(container);
-  }
-
-  function scheduleAbstractLayout() {
-    if (abstractResizeFrame !== null) {
-      cancelAnimationFrame(abstractResizeFrame);
-    }
-
-    abstractResizeFrame = requestAnimationFrame(function () {
-      abstractResizeFrame = null;
-      document.querySelectorAll('.abstract-container').forEach(function(container) {
-        updateAbstractLayout(container);
-      });
-    });
-  }
-
-  document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.abstract-container').forEach(function(container) {
-      var content = container.querySelector('.abstract-content');
-      var text = content.querySelector('.abstract-text');
-      var toggle = container.querySelector('.abstract-toggle');
-      var tail = document.createElement('span');
-      var suffix = document.createElement('span');
-      var reserve = document.createElement('span');
-      var fullText = normalizeAbstractText(text.textContent);
-
-      tail.className = 'abstract-tail';
-      suffix.className = 'abstract-suffix';
-      reserve.className = 'abstract-reserve';
-      tail.appendChild(suffix);
-      tail.appendChild(toggle);
-      content.insertBefore(reserve, text);
-      container.appendChild(tail);
-
-      text.textContent = fullText;
-      abstractStates.set(container, {
-        content: content,
-        text: text,
-        toggle: toggle,
-        tail: tail,
-        suffix: suffix,
-        reserve: reserve,
-        fullText: fullText,
-        characters: Array.from(fullText),
-        contentWidth: 0,
-        collapsedTailWidth: 0,
-        expandedTailWidth: 0,
-        collapsedLines: [],
-        expandedLines: [],
-        lineHeight: 0,
-        expanded: false,
-        isTruncatable: false
-      });
-    });
-
-    scheduleAbstractLayout();
-
-    window.addEventListener('resize', scheduleAbstractLayout);
-
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(function() {
-        scheduleAbstractLayout();
-      });
-    }
-  });
-  </script>
-
-
-
-
-
-<!-- body -->
-<body>
-
-
-  <!-- self-intro --> 
-  <table style="width:100%;max-width:800px;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
-    <tr style="padding:0px">
-      <td style="padding:0px">
-        <div class="intro-layout">
-          <p class="intro-name">
-            <name> Ruihong Shen | 沈睿弘 </name>
-          </p>
-          <div class="intro-photo-cell">
-            <img class="intro-photo" alt="profile photo" src="images/portrait.jpg">
-            <div style="text-align:center">
-              <style>
-                .threesolid{
-                  font-size: 20px;
-                  font-family: cursive;
-                  color:#454545;
-                  text-shadow:0px 1px 0px #c0c0c0,
-                    0px 2px 0px #b0b0b0,
-                    0px 3px 0px #a0a0a0,
-                    0px 4px 0px #909090,
-                    0px 5px 10px rgba(0, 0, 0, .9);
-                } 
-                </style>
-              <!-- <a href="https://www.quoteslyfe.com/images/collection2/quotations331/Don-t-be-afraid-to-start-over-331234.jpg" target="_blank"><div class="threesolid">quote of the day</div></a> -->
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ruihong Shen | 沈睿弘</title>
+    <meta
+      name="description"
+      content="Interactive academic homepage for Ruihong Shen with a Three.js particle ribbon hero and research-style content sections."
+    />
+    <link rel="icon" href="./assets/icon.jpg" type="image/jpg" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-backdrop" aria-hidden="true">
+      <div class="page-noise"></div>
+    </div>
+
+    <header class="site-nav">
+      <a class="brand" href="#top">Ruihong's homepage</a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#intro">Intro</a>
+        <a href="#news">News</a>
+        <a href="#research">Research</a>
+        <a href="#awards">Awards</a>
+        <a href="#experience">Experience</a>
+      </nav>
+    </header>
+
+    <section class="hero-shell" id="top">
+      <div class="hero-sticky">
+        <canvas id="scene-canvas" aria-hidden="true"></canvas>
+        <div class="hero-copy-scrim"></div>
+
+        <div class="hero-layout">
+          <div class="hero-copy">
+            <p class="hero-greeting">Hi! I'm</p>
+            <h1 class="hero-title">Ruihong</h1>
+            <div class="hero-meta" aria-label="Introduction">
+              <p class="hero-meta-badge">AI Undergrad '27</p>
+              <ul class="hero-tags hero-tags-compact" aria-label="Research interests">
+                <li>Intuitive physics</li>
+                <li>World models</li>
+              </ul>
             </div>
-          
-            <!-- <a href="https://hits.seeyoufarm.com" target="_blank">
-              <img 
-                src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fselina2023.github.io&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false"
-                style="display: block; margin-left: auto; margin-right: auto; width: 55%;"/>
-            </a> -->
           </div>
-          <div class="intro-copy">
-            <intro>&emsp;&emsp;Hi! I'm ruihong, a junior student in <a href="https://zhi-class.ai" target="_blank">
-              <d>Zhi Class 2023</d></a> at the <a href="https://eecs.pku.edu.cn/" target="_blank">
-              <d>School of Electronics Engineering and Computer Science (EECS)</d></a> of
-               <a href="https://english.pku.edu.cn/" target="_blank"><d>Peking University</d></a>.
-               I am pursuing a degree in Intelligence Science and Technology while also pursuing a dual degree in <a href="https://www.psy.pku.edu.cn/" target="_blank">
-                <d>Psychology</d></a>. 
-              I am currently advised by <a href="https://yzhu.io/" target="_blank">
-                <d>Prof. Yixin Zhu</d></a> at <a href="https://pku.ai/" target="_blank"><d>Cognitive Reasoning (CoRe) Lab</d></a>, Peking University.
-                <br />
-                &emsp;&emsp;My current research interest lies in intuitive physics and world models, with the goal of equipping AI agents with human-like physical commonsense to better interact with our physical world.
-                <br>
-                &emsp;&emsp;Feel free to reach out if you have any comments, questions about me, my research, or anything else! 🥺
-              </intro>
+        </div>
+
+        <button
+          class="scroll-cue"
+          type="button"
+          data-scroll-target="#intro"
+          aria-label="Scroll to content"
+        >
+          <span>Scroll</span>
+          <span class="scroll-line"></span>
+        </button>
+      </div>
+    </section>
+
+    <main class="content-shell">
+      <section class="section panel reveal" id="intro">
+        <div class="profile-grid">
+          <div class="profile-copy">
+            <div class="profile-heading">
+              <p class="profile-name">Ruihong Shen | 沈睿弘</p>
+              <p class="profile-email">shen.ruihong [at] stu.pku.edu.cn</p>
+            </div>
+
+            <p>
+              Hi! I'm ruihong, a junior student in
+              <a href="https://zhi-class.ai" target="_blank" rel="noreferrer">Zhi Class 2023</a>
+              at the
+              <a href="https://eecs.pku.edu.cn/" target="_blank" rel="noreferrer">School of Electronics Engineering and Computer Science (EECS)</a>
+              of
+              <a href="https://english.pku.edu.cn/" target="_blank" rel="noreferrer">Peking University</a>.
+              I am pursuing a degree in Intelligence Science and Technology while also pursuing a dual degree in
+              <a href="https://www.psy.pku.edu.cn/" target="_blank" rel="noreferrer">Psychology</a>.
+              I am currently advised by
+              <a href="https://yzhu.io/" target="_blank" rel="noreferrer">Prof. Yixin Zhu</a>
+              at
+              <a href="https://pku.ai/" target="_blank" rel="noreferrer">Cognitive Reasoning (CoRe) Lab</a>,
+              Peking University.
+            </p>
+            <p>
+              My current research interest lies in intuitive physics and world models, with the goal of equipping AI
+              agents with human-like physical commonsense to better interact with our physical world.
+            </p>
+            <p>
+              Feel free to reach out if you have any comments, questions about me, my research, or anything else! 🥺
+            </p>
+
+            <p class="profile-links">
+              <a href="mailto:shen.ruihong04@gmail.com">Email</a>
+              <a href="https://github.com/ruihong04/" target="_blank" rel="noreferrer">Github</a>
+              <a
+                href="https://www.xiaohongshu.com/user/profile/68f247b20000000037001ebf"
+                target="_blank"
+                rel="noreferrer"
+              >RedNote</a>
+              <a href="./resources/CV.pdf" target="_blank" rel="noreferrer">CV</a>
+            </p>
           </div>
-          <p class="intro-links">
-            <a href="mailto:shen.ruihong04@gmail.com" target="_blank">Email</a> &nbsp/&nbsp
-            <a href="https://github.com/ruihong04/" target="_blank">Github</a> &nbsp/&nbsp
-            <a href="https://www.xiaohongshu.com/user/profile/68f247b20000000037001ebf" target="_blank">RedNote</a> &nbsp/&nbsp
-            <a href="resources/CV.pdf" target="_blank">CV</a>
-          </p>
-        </div>
-        <table style="width:100%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
-    </tr>
-  </tbody></table>
 
-  
+          <aside class="profile-side">
+            <img
+              class="profile-portrait"
+              src="./assets/portrait.jpg"
+              alt="Portrait of Ruihong Shen"
+            />
+            <div class="intro-visitor-map" aria-label="Visitor map">
+              <script
+                async
+                type="text/javascript"
+                id="clustrmaps"
+                src="https://cdn.clustrmaps.com/map_v2.js?cl=e28a67&co=1a1917&ct=d1cec7&w=a&t=tt&d=OTa5sS21O7PU4KbcH9A8pmokTpj0_n1TsVsIkBstqcs"
+              ></script>
+            </div>
+          </aside>
+        </div>
+      </section>
 
-  <!-- News -->
-  <table style="width:90%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
-    <br>
-    <heading><span class="heading-text">News</span></heading>
-      <td style="padding:0px;width:100%;vertical-align:middle">
-          <p>
-            <li>[2026/04]&nbsp; One paper is accepted by <strong>CogSci 2026.</strong></li>
-          </p>
-          <p>
-            <li>[2026/03]&nbsp; I will visit the <a href="https://ccvl.jhu.edu/" target="_blank"><d>CCVL lab</d></a> at JHU this summer, fortunate to be advised by <a href="https://www.cs.jhu.edu/~ayuille1/" target="_blank">
-              <d>Prof. Alan Yuille</d></a> and <a href="https://beckschen.github.io/" target="_blank">
-              <d>Dr. Jieneng Chen</d></a>.</li>
-          </p>
-          <p>
-            <li>[2026/01]&nbsp; Two papers are accepted by <strong>ICLR 2026.</strong></li>
-          </p>
-      </td>
-  </tbody></table>
+      <section class="section panel reveal" id="news">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">News</p>
+          </div>
+        </div>
 
-  <!-- Research -->
-  <style>
-    .highlight {
-      background-color: #ffffd0;
-    }
-    /* Add rounded corners to the highlight */
-    .highlight td:first-child {
-      border-top-left-radius: 10px;
-      border-bottom-left-radius: 10px;
-    }
-    .highlight td:last-child {
-      border-top-right-radius: 10px;
-      border-bottom-right-radius: 10px;
-    }
+        <div class="news-list">
+          <article class="news-item">
+            <p><span class="news-date">[2026/04]</span> One paper is accepted by <strong>CogSci 2026.</strong></p>
+          </article>
 
-  </style>
-  <table style="width:100%;max-width:800px;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
-    <br>
-    <heading><span class="heading-text">Research</span></heading>
-    <br>
-    <p style="font-size:1em;margin-top:8px;margin-bottom:2px;">
-      <sup>*</sup> Joint first author <span style="display:inline-block;width:1.5em;"></span>
-      <sup>†</sup> Corresponding author
-    </p>
-    <!-- Highlighted New Paper -->
-    <tr class="highlight">
-      <td style="padding:20px;width:30%;vertical-align:middle">
-        <img src='images/research/cogsci26_overhangtower.jpg' style="width:100%;max-width:100%">
-      </td>
-      <td style="padding:20px;width:70%;vertical-align:middle">
-        <a href="https://overhangtower.github.io/" target="_blank">
-          <papertitle>Overhang Tower: Resource-Rational Adaptation in Sequential Physical Planning</papertitle>
-        </a>
-      <br>
-        <a class="a2" href="https://ruihong04.github.io/" target="_blank"><strong>Ruihong Shen</strong></a>,
-        <a class="a2" href="https://lishiqianhugh.github.io/" target="_blank">Shiqian Li</a>,
-        <a class="a2" href="https://yzhu.io/" target="_blank">Yixin Zhu</a><span>&#8224;</span>
-        <br>
-        <a href="https://arxiv.org/pdf/2604.09072" target="_blank">PDF</a>
-        /
-        <a href="https://overhangtower.github.io/" target="_blank">Project Page</a>
-        /
-        <a href="https://vimeo.com/1176794554" target="_blank">Video</a>
-        /
-        <a href="https://github.com/ruihong04/OverhangTower" target="_blank">Github</a>
-        <br>
-        <em>The 48th Annual Meeting of the Cognitive Science Society (<b>CogSci 2026</b>)</em>
-        <p></p>
-        <div class="abstract-container">
-        <div class="abstract-content">
-        <span class="abstract-text">
-          Humans effortlessly navigate the physical world by predicting how objects behave under gravity and contact forces, yet how such judgments support sequential physical planning under resource constraints remains poorly understood. Research on intuitive physics debates whether prediction relies on the Intuitive Physics Engine (IPE) or fast, cue-based heuristics; separately, decision-making research debates deliberative lookahead versus myopic strategies. These debates have proceeded in isolation, leaving the cognitive architecture of sequential physical planning underspecified. How physical prediction mechanisms and planning strategies jointly adapt under limited cognitive resources remains an open question. Here we show that humans exhibit a dual transition under resource pressure, simultaneously shifting both physical prediction mechanism and planning strategy to match cognitive budget. Using Overhang Tower, a construction task requiring participants to maximize horizontal overhang while maintaining stability, we find that IPE-based simulation dominates early stages while CNN-based visual heuristics prevail as complexity grows; concurrently, time pressure truncates deliberative lookahead, shifting planning toward shallower horizons: a dual transition unpredicted by prior single-mechanism accounts. These findings reveal a hierarchical, resource-rational architecture that flexibly trades computational cost against predictive fidelity. Our results unify two long-standing debates (simulation vs. heuristics and myopic vs. deliberative planning) as a dynamic repertoire reconfigured by cognitive budget.
-        </span>
-        </div>
-        <a class="abstract-toggle" onclick="event.stopPropagation(); toggleAbstract(this)">Show more</a>
-        </div>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding:20px;width:30%;vertical-align:middle">
-        <img src='images/research/iclr26_ngff.jpg' style="width:100%;max-width:100%">
-      </td>
-      <td style="padding:20px;width:70%;vertical-align:middle">
-        <a href="https://neuralgaussianforcefield.github.io/" target="_blank">
-          <papertitle>Learning Physics-Grounded 4D Dynamics with Neural Gaussian Force Fields</papertitle>
-        </a>
-      <br>
-        <a class="a2" href="https://lishiqianhugh.github.io/" target="_blank">Shiqian Li</a>*,
-        <a class="a2" href="https://ruihong04.github.io/" target="_blank"><strong>Ruihong Shen</strong>*</a>,
-        <a class="a2" href="https://dali-jack.github.io/Junfeng-Ni/" target="_blank">Junfeng Ni</a>,
-        <a class="a2" href="https://pku.ai/author/chang-pan/" target="_blank">Chang Pan</a>,
-        <a class="a2" href="http://wellyzhang.github.io/" target="_blank">Chi Zhang</a><span>&#8224;</span>,
-        <a class="a2" href="https://yzhu.io/" target="_blank">Yixin Zhu</a><span>&#8224;</span>
-        <br>
-        <a href="https://arxiv.org/pdf/2602.00148" target="_blank">PDF</a>
-        /
-        <a href="https://neuralgaussianforcefield.github.io/" target="_blank">Project Page</a>
-        /
-        <a href="https://openreview.net/forum?id=KxvboPqav6" target="_blank">OpenReview</a>
-        /
-        <a href="https://pku.ai/publication/physics2026iclr/poster.pdf" target="_blank">Poster</a>
-        /
-        <a href="https://vimeo.com/1126658030" target="_blank">Video</a>
-        /
-        <a href="https://github.com/lishiqianhugh/NeuralGaussianForceField" target="_blank">Github</a>
-        /
-        <a href="https://huggingface.co/datasets/lishiqianhugh/GSCollision" target="_blank">Dataset</a>
-        <br>
-        <em>The 14th International Conference on Learning Representations (<b>ICLR 2026</b>)</em>
-        <p></p>
-        <div class="abstract-container">
-        <div class="abstract-content">
-        <span class="abstract-text">
-        Predicting physical dynamics from visual data remains a fundamental challenge in AI, as it requires both accurate scene understanding and robust physics reasoning.
-          While recent video generation models achieve impressive visual quality, they lack explicit physics modeling and frequently violate fundamental laws like gravity and object permanence. Existing approaches combining 3D Gaussian splatting with traditional physics engines achieve physical consistency but suffer from prohibitive computational costs and struggle with complex real-world multi-object interactions.
-          The key challenge lies in developing a unified framework that learns physics-grounded representations directly from visual observations while maintaining computational efficiency and generalization capability.
-          Here we introduce NGFF, an end-to-end neural framework that learns explicit force fields from 3D Gaussian representations to generate interactive, physically realistic 4D videos from multi-view RGB inputs, achieving two orders of magnitude speedup over prior Gaussian simulators.
-          Through explicit force field modeling, NGFF demonstrates superior spatial, temporal, and compositional generalization compared to SOTA methods, including Veo3 and NVIDIA Cosmos, while enabling robust sim-to-real transfer. Comprehensive evaluation on our GSCollision dataset---640k rendered physical videos (~4TB) spanning diverse materials and complex multi-object interactions---validates NGFF's effectiveness across challenging scenarios.
-          Our results demonstrate that NGFF provides an effective bridge between visual perception and physical understanding, advancing video prediction toward physics-grounded world models with interactive capabilities.
-        </span>
-        </div>
-        <a class="abstract-toggle" onclick="event.stopPropagation(); toggleAbstract(this)">Show more</a>
-        </div>
-      </td>
-    </tr>
+          <article class="news-item">
+            <p>
+              <span class="news-date">[2026/03]</span>
+              I will visit the
+              <a href="https://ccvl.jhu.edu/" target="_blank" rel="noreferrer">CCVL lab</a>
+              at JHU this summer, fortunate to be advised by
+              <a href="https://www.cs.jhu.edu/~ayuille1/" target="_blank" rel="noreferrer">Prof. Alan Yuille</a>
+              and
+              <a href="https://beckschen.github.io/" target="_blank" rel="noreferrer">Dr. Jieneng Chen</a>.
+            </p>
+          </article>
 
-    <!-- NFF -->
-    <tr>
-      <td style="padding:20px;width:30%;vertical-align:middle">
-        <img src='images/research/iclr26_nff.jpg' style="width:100%;max-width:100%">
-      </td>
-      <td style="padding:20px;width:70%;vertical-align:middle">
-        <a href="https://neuralforcefield.github.io/" target="_blank">
-          <papertitle>Neural Force Field: Few shot learning of generalized physical reasoning</papertitle>
-        </a>
-      <br>
-        <a class="a2" href="https://lishiqianhugh.github.io/" target="_blank">Shiqian Li</a>*,
-        <a class="a2" href="https://ruihong04.github.io/" target="_blank"><strong>Ruihong Shen</strong>*</a>,
-        <a class="a2" href="https://taoyaoyu.me/" target="_blank">Yaoyu Tao</a><span>&#8224;</span>,
-        <a class="a2" href="http://wellyzhang.github.io/" target="_blank">Chi Zhang</a><span>&#8224;</span>,
-        <a class="a2" href="https://yzhu.io/" target="_blank">Yixin Zhu</a><span>&#8224;</span>
-        <br>
-        <a href="https://arxiv.org/pdf/2502.08987" target="_blank">PDF</a>
-        /
-        <a href="https://neuralforcefield.github.io/" target="_blank">Project Page</a>
-        /
-        <a href="https://openreview.net/forum?id=wNtdVoqEmr" target="_blank">OpenReview</a>
-        /
-        <a href="http://pku.ai/publication/intuitive2026iclr/poster.pdf" target="_blank">Poster</a>
-        /
-        <a href="https://vimeo.com/1055247476">Video</a>
-        /
-        <a href="https://github.com/lishiqianhugh/NeuralForceField" target="_blank">Github</a>
-        <br>
-        <em>The 14th International Conference on Learning Representations (<b>ICLR 2026</b>)</em>
-        <p></p>
-        <div class="abstract-container">
-        <div class="abstract-content">
-        <span class="abstract-text">
-        We present NFF, a modeling framework built on NODE that learns interpretable force field representations which can be efficiently integrated through an ODE solver to predict object trajectories.
-          Unlike existing approaches that rely on high-dimensional latent spaces, NFF captures fundamental physical concepts such as gravity, support, and collision in an interpretable manner. Experiments on two challenging physical reasoning tasks demonstrate that NFF, trained with only a few examples, achieves strong generalization to unseen scenarios.
-          This physics-grounded representation enables efficient forward-backward planning and rapid adaptation through interactive refinement.
-        </span>
+          <article class="news-item">
+            <p><span class="news-date">[2026/01]</span> Two papers are accepted by <strong>ICLR 2026.</strong></p>
+          </article>
         </div>
-        <a class="abstract-toggle" onclick="event.stopPropagation(); toggleAbstract(this)">Show more</a>
+      </section>
+
+      <section class="section panel reveal" id="research">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Research</p>
+          </div>
         </div>
-      </td>
-    </tr>
-  </tbody></table>
-    
-  <!-- Services -->
-  <table style="width:90%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
-      <tr>
-        <br>
-        <heading><span class="heading-text">Services</span></heading>
-        <br>
-      <td style="padding:0px;width:100%;vertical-align:middle">
-        <ul class="service-list">
-          <li class="service-entry">
-            <div class="service-item">
-              <span class="service-role">Teaching Assistant</span>
-              <span class="service-details">
-                Data Structure and Algorithm (B) (offered for STEM students)
-                <span class="service-secondary">2025 Spring · Instructor: <a href="https://cs.pku.edu.cn/info/1210/3168.htm" target="_blank">Prof. Bin Chen</a></span>
+
+        <p class="section-note">
+          <sup>*</sup> Joint first author
+          <span class="note-gap"></span>
+          <sup>†</sup> Corresponding author
+        </p>
+
+        <div class="paper-list">
+          <article class="paper-card paper-card-highlight">
+            <div class="paper-media">
+              <img
+                src="./assets/research/cogsci26_overhangtower.jpg"
+                alt="Overhang Tower project teaser"
+              />
+            </div>
+            <div class="paper-body">
+              <h3 class="paper-title">
+                <a href="https://overhangtower.github.io/" target="_blank" rel="noreferrer">
+                  Overhang Tower: Resource-Rational Adaptation in Sequential Physical Planning
+                </a>
+              </h3>
+              <p class="paper-authors">
+                <a href="https://ruihong04.github.io/" target="_blank" rel="noreferrer"><strong>Ruihong Shen</strong></a>,
+                <a href="https://lishiqianhugh.github.io/" target="_blank" rel="noreferrer">Shiqian Li</a>,
+                <a href="https://yzhu.io/" target="_blank" rel="noreferrer">Yixin Zhu</a><span>†</span>
+              </p>
+              <p class="paper-links">
+                <a href="https://arxiv.org/pdf/2604.09072" target="_blank" rel="noreferrer">PDF</a>
+                <span>/</span>
+                <a href="https://overhangtower.github.io/" target="_blank" rel="noreferrer">Project Page</a>
+                <span>/</span>
+                <a href="https://vimeo.com/1176794554" target="_blank" rel="noreferrer">Video</a>
+                <span>/</span>
+                <a href="https://github.com/ruihong04/OverhangTower" target="_blank" rel="noreferrer">Github</a>
+              </p>
+              <p class="paper-venue">
+                <em>The 48th Annual Meeting of the Cognitive Science Society (<b>CogSci 2026</b>)</em>
+              </p>
+              <div class="paper-abstract" data-abstract>
+                <p class="paper-abstract-copy">
+                  Humans effortlessly navigate the physical world by predicting
+                  how objects behave under gravity and contact forces, yet how
+                  such judgments support sequential physical planning under
+                  resource constraints remains poorly understood. Research on
+                  intuitive physics debates whether prediction relies on the
+                  Intuitive Physics Engine (IPE) or fast, cue-based heuristics;
+                  separately, decision-making research debates deliberative
+                  lookahead versus myopic strategies. These debates have
+                  proceeded in isolation, leaving the cognitive architecture of
+                  sequential physical planning underspecified. How physical
+                  prediction mechanisms and planning strategies jointly adapt
+                  under limited cognitive resources remains an open question.
+                  Here we show that humans exhibit a dual transition under
+                  resource pressure, simultaneously shifting both physical
+                  prediction mechanism and planning strategy to match cognitive
+                  budget. Using Overhang Tower, a construction task requiring
+                  participants to maximize horizontal overhang while maintaining
+                  stability, we find that IPE-based simulation dominates early
+                  stages while CNN-based visual heuristics prevail as complexity
+                  grows; concurrently, time pressure truncates deliberative
+                  lookahead, shifting planning toward shallower horizons: a dual
+                  transition unpredicted by prior single-mechanism accounts.
+                  These findings reveal a hierarchical, resource-rational
+                  architecture that flexibly trades computational cost against
+                  predictive fidelity. Our results unify two long-standing
+                  debates (simulation vs. heuristics and myopic vs. deliberative
+                  planning) as a dynamic repertoire reconfigured by cognitive
+                  budget.
+                </p>
+                <button class="abstract-toggle" type="button" aria-expanded="false">
+                  Show more
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <article class="paper-card">
+            <div class="paper-media">
+              <img
+                src="./assets/research/iclr26_ngff.jpg"
+                alt="Neural Gaussian Force Field teaser"
+              />
+            </div>
+            <div class="paper-body">
+              <h3 class="paper-title">
+                <a href="https://neuralgaussianforcefield.github.io/" target="_blank" rel="noreferrer">
+                  Learning Physics-Grounded 4D Dynamics with Neural Gaussian Force Fields
+                </a>
+              </h3>
+              <p class="paper-authors">
+                <a href="https://lishiqianhugh.github.io/" target="_blank" rel="noreferrer">Shiqian Li</a><sup>*</sup>,
+                <a href="https://ruihong04.github.io/" target="_blank" rel="noreferrer"><strong>Ruihong Shen</strong></a><sup>*</sup>,
+                <a href="https://dali-jack.github.io/Junfeng-Ni/" target="_blank" rel="noreferrer">Junfeng Ni</a>,
+                <a href="https://pku.ai/author/chang-pan/" target="_blank" rel="noreferrer">Chang Pan</a>,
+                <a href="http://wellyzhang.github.io/" target="_blank" rel="noreferrer">Chi Zhang</a><span>†</span>,
+                <a href="https://yzhu.io/" target="_blank" rel="noreferrer">Yixin Zhu</a><span>†</span>
+              </p>
+              <p class="paper-links">
+                <a href="https://arxiv.org/pdf/2602.00148" target="_blank" rel="noreferrer">PDF</a>
+                <span>/</span>
+                <a href="https://neuralgaussianforcefield.github.io/" target="_blank" rel="noreferrer">Project Page</a>
+                <span>/</span>
+                <a href="https://openreview.net/forum?id=KxvboPqav6" target="_blank" rel="noreferrer">OpenReview</a>
+                <span>/</span>
+                <a href="https://pku.ai/publication/physics2026iclr/poster.pdf" target="_blank" rel="noreferrer">Poster</a>
+                <span>/</span>
+                <a href="https://vimeo.com/1126658030" target="_blank" rel="noreferrer">Video</a>
+                <span>/</span>
+                <a href="https://github.com/lishiqianhugh/NeuralGaussianForceField" target="_blank" rel="noreferrer">Github</a>
+                <span>/</span>
+                <a href="https://huggingface.co/datasets/lishiqianhugh/GSCollision" target="_blank" rel="noreferrer">Dataset</a>
+              </p>
+              <p class="paper-venue">
+                <em>The 14th International Conference on Learning Representations (<b>ICLR 2026</b>)</em>
+              </p>
+              <div class="paper-abstract" data-abstract>
+                <p class="paper-abstract-copy">
+                  Predicting physical dynamics from visual data remains a
+                  fundamental challenge in AI, as it requires both accurate scene
+                  understanding and robust physics reasoning. While recent video
+                  generation models achieve impressive visual quality, they lack
+                  explicit physics modeling and frequently violate fundamental
+                  laws like gravity and object permanence. Existing approaches
+                  combining 3D Gaussian splatting with traditional physics
+                  engines achieve physical consistency but suffer from
+                  prohibitive computational costs and struggle with complex
+                  real-world multi-object interactions. The key challenge lies
+                  in developing a unified framework that learns
+                  physics-grounded representations directly from visual
+                  observations while maintaining computational efficiency and
+                  generalization capability. Here we introduce NGFF, an
+                  end-to-end neural framework that learns explicit force fields
+                  from 3D Gaussian representations to generate interactive,
+                  physically realistic 4D videos from multi-view RGB inputs,
+                  achieving two orders of magnitude speedup over prior Gaussian
+                  simulators. Through explicit force field modeling, NGFF
+                  demonstrates superior spatial, temporal, and compositional
+                  generalization compared to SOTA methods, including Veo3 and
+                  NVIDIA Cosmos, while enabling robust sim-to-real transfer.
+                  Comprehensive evaluation on our GSCollision dataset---640k
+                  rendered physical videos (~4TB) spanning diverse materials and
+                  complex multi-object interactions---validates NGFF's
+                  effectiveness across challenging scenarios. Our results
+                  demonstrate that NGFF provides an effective bridge between
+                  visual perception and physical understanding, advancing video
+                  prediction toward physics-grounded world models with
+                  interactive capabilities.
+                </p>
+                <button class="abstract-toggle" type="button" aria-expanded="false">
+                  Show more
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <article class="paper-card">
+            <div class="paper-media">
+              <img
+                src="./assets/research/iclr26_nff.jpg"
+                alt="Neural Force Field teaser"
+              />
+            </div>
+            <div class="paper-body">
+              <h3 class="paper-title">
+                <a href="https://neuralforcefield.github.io/" target="_blank" rel="noreferrer">
+                  Neural Force Field: Few shot learning of generalized physical reasoning
+                </a>
+              </h3>
+              <p class="paper-authors">
+                <a href="https://lishiqianhugh.github.io/" target="_blank" rel="noreferrer">Shiqian Li</a><sup>*</sup>,
+                <a href="https://ruihong04.github.io/" target="_blank" rel="noreferrer"><strong>Ruihong Shen</strong></a><sup>*</sup>,
+                <a href="https://taoyaoyu.me/" target="_blank" rel="noreferrer">Yaoyu Tao</a><span>†</span>,
+                <a href="http://wellyzhang.github.io/" target="_blank" rel="noreferrer">Chi Zhang</a><span>†</span>,
+                <a href="https://yzhu.io/" target="_blank" rel="noreferrer">Yixin Zhu</a><span>†</span>
+              </p>
+              <p class="paper-links">
+                <a href="https://arxiv.org/pdf/2502.08987" target="_blank" rel="noreferrer">PDF</a>
+                <span>/</span>
+                <a href="https://neuralforcefield.github.io/" target="_blank" rel="noreferrer">Project Page</a>
+                <span>/</span>
+                <a href="https://openreview.net/forum?id=wNtdVoqEmr" target="_blank" rel="noreferrer">OpenReview</a>
+                <span>/</span>
+                <a href="http://pku.ai/publication/intuitive2026iclr/poster.pdf" target="_blank" rel="noreferrer">Poster</a>
+                <span>/</span>
+                <a href="https://vimeo.com/1055247476" target="_blank" rel="noreferrer">Video</a>
+                <span>/</span>
+                <a href="https://github.com/lishiqianhugh/NeuralForceField" target="_blank" rel="noreferrer">Github</a>
+              </p>
+              <p class="paper-venue">
+                <em>The 14th International Conference on Learning Representations (<b>ICLR 2026</b>)</em>
+              </p>
+              <div class="paper-abstract" data-abstract>
+                <p class="paper-abstract-copy">
+                  We present NFF, a modeling framework built on NODE that learns
+                  interpretable force field representations which can be
+                  efficiently integrated through an ODE solver to predict object
+                  trajectories. Unlike existing approaches that rely on
+                  high-dimensional latent spaces, NFF captures fundamental
+                  physical concepts such as gravity, support, and collision in an
+                  interpretable manner. Experiments on two challenging physical
+                  reasoning tasks demonstrate that NFF, trained with only a few
+                  examples, achieves strong generalization to unseen scenarios.
+                  This physics-grounded representation enables efficient
+                  forward-backward planning and rapid adaptation through
+                  interactive refinement.
+                </p>
+                <button class="abstract-toggle" type="button" aria-expanded="false">
+                  Show more
+                </button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section panel reveal" id="services">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Services</p>
+          </div>
+        </div>
+
+        <div class="service-list">
+          <article class="service-card">
+            <div class="service-role">Teaching Assistant</div>
+            <div class="service-details">
+              <strong>Data Structure and Algorithm (B) (offered for STEM students)</strong>
+              <span class="service-secondary">
+                2025 Spring · Instructor:
+                <a href="https://cs.pku.edu.cn/info/1210/3168.htm" target="_blank" rel="noreferrer">Prof. Bin Chen</a>
               </span>
             </div>
-          </li>
-        </ul>
-      </td>
-    </tr>
-  </tbody></table>
+          </article>
+        </div>
+      </section>
 
-  <!-- Experience -->
+      <section class="section panel reveal" id="experience">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Experience</p>
+          </div>
+        </div>
 
-  <table width="100%" align="center" border="0" cellpadding="10"><tbody>
-      <br>
-          <heading><span class="heading-text">Experience</span></heading>
-      <!-- <br> -->
-      <tr>
-        <td style="padding-left:27px;padding-right:20px;width:20%;vertical-align:middle"><img src="images/experience/core_lab.png", width="108"></td>
-        <td width="90%" valign="center">
-          <strong><a href="https://pku.ai/" target="_blank"><papertitle>Cognitive Reasoning (CoRe) Lab, Institute for Artificial Intelligence, Peking University, China
-          </papertitle></a></strong>
-          <br> <em>2024.04 - Present</em>
-          <br> <strong>Student Research Intern</strong>
-        </td>
-      </tr> 
-      <tr>
-        <br>
-        <td style="padding-left:20px;padding-right:20px;width:20%;vertical-align:middle"><img src="images/experience/Zhilogo.png", width="108"></td>
-        <td width="90%" valign="center">
-          <strong><a href="https://zhi-class.ai" target="_blank">Zhi Class (智班)</a></strong>
-          <br> <em>Honors program initiated by <a href="https://baoquanchen.info/" target="_blank">Prof. Baoquan Chen</a></em>
-          <br> <em>2023.09 - Present</em>
-        </td>
-      </tr>
-      <tr>
-          <br>
-          <td style="padding-left:20px;padding-right:20px;width:20%;vertical-align:middle"><img src="images/experience/pkulogo.png", width="108"></td>
-          <td width="90%" valign="center">
-            <strong><a href="https://english.pku.edu.cn/" target="_blank"><papertitle>Peking University (北京大学)</papertitle></a></strong>
-            <br> <em>2023.09 - Present</em>
-            <br> <strong> Undergraduate Student</strong>
-            <br> Major:  Intelligence Science and Technology (Artificial Intelligence)
-            <br> Double Major: Psychology
-          </td>
-      </tr>
-      <!-- <tr>
-        <br>
-        <td style="padding-left:20px;padding-right:20px;width:20%;vertical-align:middle"><img src="images/experience/fdfz.png", width="108"></td>
-        <td width="90%" valign="center">
-          <strong><a href="https://fdfz.cn/" target="_blank"><papertitle>High School Affiliated to Fudan University (复旦大学附属中学)</papertitle></a></strong>
-          <br> <em>2020.09 - 2023.06</em>
-          <br> <strong> High School Student</strong>
-        </td>
-      </tr> -->
-        
-  </tbody></table>
+        <div class="experience-list">
+          <article class="experience-card">
+            <img
+              class="experience-logo"
+              src="./assets/experience/core_lab.png"
+              alt="CoRe Lab logo"
+            />
+            <div class="experience-body">
+              <h3 class="experience-title">
+                <a href="https://pku.ai/" target="_blank" rel="noreferrer">
+                  Cognitive Reasoning (CoRe) Lab, Institute for Artificial Intelligence, Peking University, China
+                </a>
+              </h3>
+              <p class="experience-copy"><strong>Student Research Intern</strong></p>
+              <p class="experience-meta">2024.04 - Present</p>
+            </div>
+          </article>
 
-  <!-- Selected Awards and Honors -->
-  <table style="width:90%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
-    <br>
-    <heading><span class="heading-text">Selected Awards</span></heading>
-      <td style="padding:0px;width:100%;vertical-align:middle">
-          <p>
-            <li>2025: Junyuan Scholarship</li> 
-          </p>
-          <p>
-            <li>2025: Merit Student of Peking University</li>
-          </p>
-          <p>
-            <li>2024: <strong>National Scholarship</strong> (Highest scholarship for Chinese undergraduates) </li>
-          </p>
-          <p>
-            <li>2024: Merit Student of Peking University</li>
-          </p>     
-          <p>
-            <li>2023: Peking University Freshman Scholarship</li>
-          </p>
-      </td>
-  </tbody></table>
+          <article class="experience-card">
+            <img
+              class="experience-logo"
+              src="./assets/experience/Zhilogo.png"
+              alt="Zhi Class logo"
+            />
+            <div class="experience-body">
+              <h3 class="experience-title">
+                <a href="https://zhi-class.ai" target="_blank" rel="noreferrer">Zhi Class (智班)</a>
+              </h3>
+              <p class="experience-copy">
+                <em>Honors program initiated by <a href="https://baoquanchen.info/" target="_blank" rel="noreferrer">Prof. Baoquan Chen</a></em>
+              </p>
+              <p class="experience-meta">2023.09 - Present</p>
+            </div>
+          </article>
 
-  <!-- Miscellaneous -->
-  <table style="width:90%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
-          <br>
-          <heading><span class="heading-text">Miscellaneous</span></heading>
-          <br>
-          <p>
-            Just a part showing photos recently taken. Hope you enjoy them :) 🥺🥺🥺
-          </p>
-          </p>
-          <tr>
-            <td style="padding:0px;width:100%;vertical-align:middle">
-              <div id="gallery-container">
-                <div id="gallery-viewport">
-                  <div id="gallery" aria-live="polite"></div>
-                </div>
+          <article class="experience-card">
+            <img
+              class="experience-logo"
+              src="./assets/experience/pkulogo.png"
+              alt="Peking University logo"
+            />
+            <div class="experience-body">
+              <h3 class="experience-title">
+                <a href="https://english.pku.edu.cn/" target="_blank" rel="noreferrer">Peking University (北京大学)</a>
+              </h3>
+              <p class="experience-meta">2023.09 - Present</p>
+              <p class="experience-copy"><strong>Undergraduate Student</strong></p>
+              <p class="experience-copy">Major: Intelligence Science and Technology (Artificial Intelligence)</p>
+              <p class="experience-copy">Double Major: Psychology</p>
+            </div>
+          </article>
+        </div>
+      </section>
 
-                <!-- Navigation Controls -->
-                <button id="prev" class="gallery-control" type="button" aria-label="Show previous photos">❮</button>
-                <button id="next" class="gallery-control" type="button" aria-label="Show next photos">❯</button>
-              </div>
-            </td>
-          </tr>
+      <section class="section panel reveal" id="awards">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Selected Awards</p>
+          </div>
+        </div>
 
-        <!-- <td style="padding:0px;width:100%;vertical-align:middle"> -->
-        </td>
-      </tr>
-  </tbody></table>
-  
-  <script>
-    (() => {
-      const baseUrl = 'https://homepage-ruihong.oss-cn-beijing.aliyuncs.com/photos/';
-      const folder = '20251024';
-      const numImages = 12;
-      const autoAdvanceDelay = 5000;
-      const transitionDurationMs = 500;
-      const gallery = document.getElementById('gallery');
-      const galleryContainer = document.getElementById('gallery-container');
-      const prevButton = document.getElementById('prev');
-      const nextButton = document.getElementById('next');
+        <div class="award-list">
+          <article class="award-row">
+            <span class="award-year">2025</span>
+            <p>Junyuan Scholarship</p>
+          </article>
 
-      const photos = Array.from({ length: numImages }, (_, index) => ({
-        src: `${baseUrl}${folder}/photo${index + 1}.jpg`,
-        alt: `Gallery Image ${index + 1}`
-      }));
+          <article class="award-row">
+            <span class="award-year">2025</span>
+            <p>Merit Student of Peking University</p>
+          </article>
 
-      if (photos.length < 2) {
-        return;
-      }
+          <article class="award-row">
+            <span class="award-year">2024</span>
+            <p><strong>National Scholarship</strong> (Highest scholarship for Chinese undergraduates)</p>
+          </article>
 
-      const loopedPhotos = [
-        photos[photos.length - 1],
-        ...photos,
-        photos[0],
-        photos[1]
-      ];
+          <article class="award-row">
+            <span class="award-year">2024</span>
+            <p>Merit Student of Peking University</p>
+          </article>
 
-      let currentIndex = 0;
-      let isTransitioning = false;
-      let autoAdvanceTimer = null;
-      const queuedMoves = [];
+          <article class="award-row">
+            <span class="award-year">2023</span>
+            <p>Peking University Freshman Scholarship</p>
+          </article>
+        </div>
+      </section>
 
-      function buildGalleryItem(photo, index) {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'gallery-item';
+      <section class="section panel reveal" id="misc">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Miscellaneous</p>
+          </div>
+        </div>
 
-        const img = document.createElement('img');
-        img.src = photo.src;
-        img.alt = photo.alt;
-        img.decoding = 'async';
-        img.loading = index < 4 ? 'eager' : 'lazy';
-
-        itemDiv.appendChild(img);
-        return itemDiv;
-      }
-
-      function syncPosition(animate = true) {
-        gallery.style.transition = animate ? `transform ${transitionDurationMs}ms ease` : 'none';
-        gallery.style.transform = `translateX(-${(currentIndex + 1) * 50}%)`;
-
-        if (!animate) {
-          void gallery.offsetWidth;
-          gallery.style.transition = `transform ${transitionDurationMs}ms ease`;
-        }
-      }
-
-      function move(delta) {
-        if (isTransitioning) {
-          queuedMoves.push(delta);
-          return;
-        }
-
-        isTransitioning = true;
-        currentIndex += delta;
-        syncPosition(true);
-      }
-
-      function flushQueuedMove() {
-        if (!queuedMoves.length) {
-          return;
-        }
-
-        const nextDelta = queuedMoves.shift();
-        requestAnimationFrame(() => {
-          move(nextDelta);
-        });
-      }
-
-      function resetAutoAdvance() {
-        window.clearInterval(autoAdvanceTimer);
-        autoAdvanceTimer = window.setInterval(() => {
-          move(1);
-        }, autoAdvanceDelay);
-      }
-
-      function pauseAutoAdvance() {
-        window.clearInterval(autoAdvanceTimer);
-      }
-
-      loopedPhotos.forEach((photo, index) => {
-        gallery.appendChild(buildGalleryItem(photo, index));
-      });
-
-      syncPosition(false);
-
-      prevButton.addEventListener('click', () => {
-        move(-1);
-        resetAutoAdvance();
-      });
-
-      nextButton.addEventListener('click', () => {
-        move(1);
-        resetAutoAdvance();
-      });
-
-      gallery.addEventListener('transitionend', (event) => {
-        if (event.propertyName !== 'transform') {
-          return;
-        }
-
-        if (currentIndex < 0) {
-          currentIndex = photos.length - 1;
-          syncPosition(false);
-        } else if (currentIndex >= photos.length) {
-          currentIndex = 0;
-          syncPosition(false);
-        }
-
-        isTransitioning = false;
-        flushQueuedMove();
-      });
-
-      galleryContainer.addEventListener('mouseenter', pauseAutoAdvance);
-      galleryContainer.addEventListener('mouseleave', resetAutoAdvance);
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-          pauseAutoAdvance();
-        } else {
-          resetAutoAdvance();
-        }
-      });
-
-      resetAutoAdvance();
-    })();
-  </script>
-  
-
-  <table width="100%" align="center" border="0" cellspacing="0" cellpadding="10">
-      <tbody>
-      <tr>
-          <td style="padding:0px;width:23%;vertical-align:left">
-              <br>
-              <div style="width: 50%; text-align: center; margin: 0 auto;">
-                <script type="text/javascript" id="clustrmaps" src="//cdn.clustrmaps.com/map_v2.js?cl=ffffff&w=a&t=tt&d=OTa5sS21O7PU4KbcH9A8pmokTpj0_n1TsVsIkBstqcs"></script>
-              </div>
-          </td>
-      </tr>
-      </tbody>
-  </table>
-  <!-- Aknowledgements -->
-  <table style="width:100%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
-    <tr>
-      <!-- <br> -->
-      <!-- <br> -->
-      <hr>
-        <p style="text-align:center">
-          Last updated: April 2026.&nbsp;&nbsp;&nbsp;&nbsp; This homepage is designed based on <a href="https://jonbarron.info/">Jon Barron</a>'s website. 
+        <p class="misc-copy">
+          Just a small section showing some photos taken recently. Hope you enjoy them :) 🥺🥺🥺
         </p>
-      </td>
-      </tr>
-  </tbody></table>
- 
-</body>
+
+        <div id="gallery-container">
+          <div id="gallery-viewport">
+            <div id="gallery" aria-live="polite"></div>
+          </div>
+
+          <button id="prev" class="gallery-control" type="button" aria-label="Show previous photos">❮</button>
+          <button id="next" class="gallery-control" type="button" aria-label="Show next photos">❯</button>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>
+        Last updated: April 2026. © 2026 Ruihong.
+      </p>
+    </footer>
+
+    <script type="module" src="./app.js"></script>
+  </body>
 </html>
