@@ -77,8 +77,23 @@ export function createHeroConfig() {
       pointSizeMin: 18,
       pointSizeMax: 42,
       fallSpeed: 0.02,
-      glintStrength: 0.16,
-      exposure: 0.62,
+    },
+
+    themes: {
+      dark: {
+        particleMode: 0,
+        particleBlending: 'additive',
+        renderExposure: 0.74,
+        particleExposure: 0.62,
+        glintStrength: 0.16,
+      },
+      light: {
+        particleMode: 1,
+        particleBlending: 'normal',
+        renderExposure: 1.0,
+        particleExposure: 3,
+        glintStrength: 0.16,
+      },
     },
 
     interaction: {
@@ -93,10 +108,6 @@ export function createHeroConfig() {
       followDesktop: 0.16,
       followMobile: 0.18,
       idleReturn: 0.05,
-    },
-
-    render: {
-      exposure: 0.74,
     },
 
     scroll: {

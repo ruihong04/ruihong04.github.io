@@ -253,6 +253,7 @@ uniform float uVisibleAspect;
 uniform float uFallSpeed;
 uniform float uGlintStrength;
 uniform float uExposure;
+uniform float uThemeMode;
 
 attribute vec2 aUV;
 attribute vec2 aSimUV;
@@ -271,14 +272,15 @@ void main() {
   vec3 pos = flow.position;
 
   vec3 sampledColor = texture2D(uAtlasTexture, vec2(aUV.x, flow.atlasV)).rgb;
-  sampledColor = pow(sampledColor, vec3(1.18));
+  sampledColor = pow(sampledColor, vec3(mix(1.18, 1.04, uThemeMode)));
   sampledColor *= uExposure;
-  sampledColor = sampledColor / (1.0 + sampledColor * 0.78);
+  sampledColor = sampledColor / (1.0 + sampledColor * mix(0.78, 0.42, uThemeMode));
 
   float luminance = dot(sampledColor, vec3(0.2126, 0.7152, 0.0722));
-  sampledColor = mix(vec3(luminance), sampledColor, 0.88);
+  sampledColor = mix(vec3(luminance), sampledColor, mix(0.88, 0.95, uThemeMode));
+  sampledColor = mix(sampledColor, mix(vec3(0.52, 0.30, 0.21), sampledColor * 0.78, 0.78), uThemeMode);
 
-  float alpha = 0.56;
+  float alpha = mix(0.56, 0.70, uThemeMode);
   float edgeMask = smoothstep(0.015, 0.08, aUV.x) * (1.0 - smoothstep(0.92, 0.985, aUV.x));
   alpha *= mix(0.72, 1.0, edgeMask);
 
@@ -344,6 +346,8 @@ void main() {
 export const PARTICLE_FRAGMENT_SHADER = /* glsl */ `
 precision highp float;
 
+uniform float uThemeMode;
+
 varying vec3 vColor;
 varying float vAlpha;
 varying float vGlint;
@@ -356,9 +360,10 @@ void main() {
   }
 
   float soft = 1.0 - smoothstep(0.14, 0.25, radius);
-  vec3 gold = vec3(1.08, 0.96, 0.74);
-  vec3 color = vColor + gold * vGlint * 0.24;
-  float alpha = min(vAlpha * soft * (0.52 + vGlint * 0.54), 1.0);
+  vec3 glintColor = mix(vec3(1.08, 0.96, 0.74), vec3(0.86, 0.42, 0.25), uThemeMode);
+  vec3 color = vColor + glintColor * vGlint * mix(0.24, 0.18, uThemeMode);
+  float alphaScale = mix(0.52 + vGlint * 0.54, 0.72 + vGlint * 0.20, uThemeMode);
+  float alpha = min(vAlpha * soft * alphaScale, 1.0);
 
   gl_FragColor = vec4(color, alpha);
 }

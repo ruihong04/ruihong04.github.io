@@ -1,4 +1,4 @@
-import * as THREE from './three.module.js';
+import * as THREE from 'three';
 
 const FIREWORK_VERTEX_SHADER = /* glsl */ `
 precision highp float;
@@ -43,7 +43,24 @@ void main() {
 }
 `;
 
-const FIREWORK_PALETTE = ['#fff4d6', '#ffd48b', '#f0b086', '#e28a67', '#ffe7c2'];
+const FIREWORK_THEMES = {
+  dark: {
+    palette: ['#fff4d6', '#ffd48b', '#f0b086', '#e28a67', '#ffe7c2'],
+    glowColor: '#fff9ef',
+    glowMix: 0.1,
+    blending: THREE.AdditiveBlending,
+    sparkAlpha: [0.36, 0.6],
+    glowAlpha: [0.14, 0.26],
+  },
+  light: {
+    palette: ['#7f3f2b', '#a65036', '#c2714f', '#d28255', '#795a34'],
+    glowColor: '#f4bd85',
+    glowMix: 0.16,
+    blending: THREE.NormalBlending,
+    sparkAlpha: [0.42, 0.7],
+    glowAlpha: [0.12, 0.22],
+  },
+};
 const MAX_ACTIVE_BURSTS = 12;
 
 function clamp(value, min, max) {
@@ -60,9 +77,6 @@ function createSparkTexture() {
   canvas.height = 64;
 
   const context = canvas.getContext('2d');
-  if (!context) {
-    throw new Error('Could not create canvas context for fireworks texture.');
-  }
 
   const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 32);
   gradient.addColorStop(0.0, 'rgba(255, 255, 255, 1)');
@@ -84,7 +98,7 @@ function createSparkTexture() {
   return texture;
 }
 
-function createFireworkMaterial(spriteTexture) {
+function createFireworkMaterial(spriteTexture, theme) {
   return new THREE.ShaderMaterial({
     uniforms: {
       uPixelRatio: { value: 1 },
@@ -95,7 +109,7 @@ function createFireworkMaterial(spriteTexture) {
     transparent: true,
     depthTest: false,
     depthWrite: false,
-    blending: THREE.AdditiveBlending,
+    blending: theme.blending,
     vertexColors: false,
   });
 }
@@ -112,6 +126,7 @@ export class GlobalClickFireworks {
       height: window.innerHeight,
       dpr: 1,
       reducedMotion: false,
+      theme: document.documentElement.getAttribute('data-theme'),
     };
 
     this.renderer = new THREE.WebGLRenderer({
@@ -129,7 +144,7 @@ export class GlobalClickFireworks {
     this.camera.position.z = 10;
 
     this.sparkTexture = createSparkTexture();
-    this.material = createFireworkMaterial(this.sparkTexture);
+    this.material = createFireworkMaterial(this.sparkTexture, FIREWORK_THEMES[this.state.theme]);
     this.bursts = [];
   }
 
@@ -154,11 +169,13 @@ export class GlobalClickFireworks {
     this.state.reducedMotion = reducedMotion;
   }
 
-  trigger(event) {
-    if (event.button !== undefined && event.button !== 0) {
-      return;
-    }
+  setTheme(theme) {
+    this.state.theme = theme;
+    this.material.blending = FIREWORK_THEMES[theme].blending;
+    this.material.needsUpdate = true;
+  }
 
+  trigger(event) {
     const point = this.toScenePoint(event.clientX, event.clientY);
     this.spawnBurst(point.x, point.y);
   }
@@ -188,6 +205,7 @@ export class GlobalClickFireworks {
 
     const glowCount = Math.max(4, Math.round(particleCount * 0.14));
     const color = new THREE.Color();
+    const theme = FIREWORK_THEMES[this.state.theme];
 
     for (let index = 0; index < particleCount; index += 1) {
       const baseIndex = index * 3;
@@ -210,9 +228,9 @@ export class GlobalClickFireworks {
       velocities[baseIndex + 1] = directionY * speed + directionalBias;
       velocities[baseIndex + 2] = 0;
 
-      color.set(FIREWORK_PALETTE[Math.floor(Math.random() * FIREWORK_PALETTE.length)]);
+      color.set(theme.palette[Math.floor(Math.random() * theme.palette.length)]);
       if (isGlowParticle) {
-        color.lerp(new THREE.Color('#fff9ef'), 0.1);
+        color.lerp(new THREE.Color(theme.glowColor), theme.glowMix);
       }
 
       colors[baseIndex + 0] = color.r;
@@ -220,7 +238,8 @@ export class GlobalClickFireworks {
       colors[baseIndex + 2] = color.b;
 
       const size = isGlowParticle ? randBetween(11, 18) : randBetween(5.5, 11);
-      const alpha = isGlowParticle ? randBetween(0.14, 0.26) : randBetween(0.36, 0.6);
+      const alphaRange = isGlowParticle ? theme.glowAlpha : theme.sparkAlpha;
+      const alpha = randBetween(alphaRange[0], alphaRange[1]);
 
       sizes[index] = size;
       alphas[index] = alpha;
@@ -309,7 +328,6 @@ export class GlobalClickFireworks {
   }
 
   disposeBurst(burst) {
-    if (!burst) return;
     this.scene.remove(burst.points);
     burst.geometry.dispose();
   }

@@ -4,12 +4,17 @@ import { GlobalClickFireworks } from './GlobalClickFireworks.js';
 
 const root = document.documentElement;
 const canvas = document.getElementById('scene-canvas');
+const siteNav = document.querySelector('.site-nav');
+const themeToggle = document.querySelector('[data-theme-toggle]');
+const colorSchemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
 const reducedMotionMedia = window.matchMedia('(prefers-reduced-motion: reduce)');
+const THEME_STORAGE_KEY = 'theme';
 
 const heroConfig = createHeroConfig();
 const mobileBreakpoint = heroConfig.viewport.mobileBreakpoint;
 
 const state = {
+  theme: root.getAttribute('data-theme'),
   width: window.innerWidth,
   height: window.innerHeight,
   isMobile: window.innerWidth <= mobileBreakpoint,
@@ -25,6 +30,35 @@ const hero = new ParticleHero({
 });
 const fireworks = new GlobalClickFireworks();
 
+function getSystemTheme() {
+  return colorSchemeMedia.matches ? 'dark' : 'light';
+}
+
+function updateThemeButton(theme) {
+  const nextTheme = theme === 'dark' ? 'light' : 'dark';
+  const label = `Switch to ${nextTheme} mode`;
+  themeToggle.setAttribute('aria-label', label);
+  themeToggle.setAttribute('title', label);
+}
+
+function applyTheme(theme, savePreference = false) {
+  root.setAttribute('data-theme', theme);
+  state.theme = theme;
+  updateThemeButton(theme);
+  hero.setTheme(theme);
+  fireworks.setTheme(theme);
+
+  if (savePreference) {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }
+}
+
+function applyReducedMotion(reducedMotion) {
+  state.reducedMotion = reducedMotion;
+  hero.setReducedMotion(reducedMotion);
+  fireworks.setReducedMotion(reducedMotion);
+}
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
@@ -37,7 +71,7 @@ function updateViewport() {
   state.width = window.innerWidth;
   state.height = window.innerHeight;
   state.isMobile = window.innerWidth <= mobileBreakpoint;
-  state.dpr = Math.min(window.devicePixelRatio || 1, state.isMobile ? 1.35 : 1.8);
+  state.dpr = Math.min(window.devicePixelRatio, state.isMobile ? 1.35 : 1.8);
 
   hero.resize({
     width: state.width,
@@ -51,23 +85,53 @@ function updateViewport() {
     height: state.height,
     dpr: state.dpr,
   });
+
+  updateNavMetrics();
+}
+
+function updateNavMetrics() {
+  const rect = siteNav.getBoundingClientRect();
+  root.style.setProperty('--nav-height', `${Math.ceil(rect.height)}px`);
+  root.style.setProperty('--nav-offset-top', `${Math.max(Math.round(rect.top), 0)}px`);
+}
+
+function getAnchorGap() {
+  return Number.parseFloat(window.getComputedStyle(root).getPropertyValue('--anchor-gap'));
+}
+
+function getAnchorOffset() {
+  const rect = siteNav.getBoundingClientRect();
+  return Math.max(rect.bottom, 0) + getAnchorGap();
+}
+
+function getLayoutTop(element) {
+  return element.getBoundingClientRect().top + window.scrollY;
+}
+
+function getMaxScrollY() {
+  return Math.max(document.scrollingElement.scrollHeight - window.innerHeight, 0);
+}
+
+function getHashTarget(hash) {
+  if (!hash || hash === '#') return null;
+  return document.getElementById(decodeURIComponent(hash.slice(1)));
+}
+
+function scrollToAnchorTarget(target, behavior = 'smooth') {
+  const top =
+    target.id === 'top'
+      ? 0
+      : clamp(getLayoutTop(target) - getAnchorOffset(), 0, getMaxScrollY());
+
+  window.scrollTo({
+    top,
+    behavior: state.reducedMotion ? 'auto' : behavior,
+  });
 }
 
 function updateScrollTarget() {
   const rangeFactor = state.isMobile ? heroConfig.scroll.rangeMobile : heroConfig.scroll.rangeDesktop;
-  const scrollRange = Math.max(window.innerHeight * rangeFactor, 1);
-  state.scrollTarget = clamp(window.scrollY / scrollRange, 0, 1.16);
-}
-
-function bindScrollButtons() {
-  document.querySelectorAll('[data-scroll-target]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const targetSelector = button.getAttribute('data-scroll-target');
-      const target = targetSelector ? document.querySelector(targetSelector) : null;
-      if (!target) return;
-      target.scrollIntoView({ behavior: state.reducedMotion ? 'auto' : 'smooth', block: 'start' });
-    });
-  });
+  state.scrollTarget = clamp(window.scrollY / (window.innerHeight * rangeFactor), 0, 1.16);
 }
 
 function bindReveals() {
@@ -109,277 +173,478 @@ function bindHeroPointer() {
 }
 
 function bindGlobalClickFireworks() {
-  window.addEventListener(
-    'click',
-    (event) => {
-      fireworks.trigger(event);
-    },
-    { passive: true }
-  );
+  window.addEventListener('click', (event) => fireworks.trigger(event), { passive: true });
+}
+
+function bindThemeToggle() {
+  updateThemeButton(state.theme);
+
+  themeToggle.addEventListener('click', () => {
+    applyTheme(state.theme === 'dark' ? 'light' : 'dark', true);
+  });
+
+  colorSchemeMedia.addEventListener('change', () => {
+    if (!localStorage.getItem(THEME_STORAGE_KEY)) {
+      applyTheme(getSystemTheme());
+    }
+  });
+}
+
+function bindAnchorNavigation() {
+  siteNav.addEventListener('click', (event) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    const link = event.target.closest('a[href^="#"]');
+    if (!link) return;
+
+    const target = getHashTarget(link.hash);
+    if (!target) return;
+
+    event.preventDefault();
+    scrollToAnchorTarget(target);
+
+    if (window.location.hash !== link.hash) {
+      window.history.pushState(null, '', link.hash);
+    }
+  });
+
+  window.addEventListener('popstate', () => {
+    const target = getHashTarget(window.location.hash);
+    if (target) {
+      scrollToAnchorTarget(target, 'auto');
+    }
+  });
 }
 
 const ABSTRACT_PREVIEW_LINES = 4;
 const ABSTRACT_COLLAPSED_SUFFIX = '...';
-const ABSTRACT_EXPANDED_SUFFIX = '';
 const ABSTRACT_TOGGLE_GAP = '    ';
+const ABSTRACT_FILLER_SAFETY_PX = 1;
 
 const abstractStates = new WeakMap();
-let abstractMeasureNode = null;
 let abstractResizeFrame = null;
 
-function normalizeAbstractText(text) {
-  return text.replace(/\s+/g, ' ').trim();
-}
-
 function resolveLineHeight(reference) {
-  const styles = window.getComputedStyle(reference);
-  const lineHeight = Number.parseFloat(styles.lineHeight);
-  if (Number.isFinite(lineHeight)) {
-    return lineHeight;
+  return Number.parseFloat(window.getComputedStyle(reference).lineHeight);
+}
+
+function collectTextNodes(rootNode) {
+  const textNodes = [];
+  const walker = document.createTreeWalker(rootNode, NodeFilter.SHOW_TEXT);
+
+  while (walker.nextNode()) {
+    textNodes.push(walker.currentNode);
   }
 
-  return Number.parseFloat(styles.fontSize) * 1.2;
+  return textNodes;
 }
 
-function getAbstractMeasureNode(reference) {
-  if (!abstractMeasureNode) {
-    abstractMeasureNode = document.createElement('div');
-    abstractMeasureNode.style.position = 'absolute';
-    abstractMeasureNode.style.visibility = 'hidden';
-    abstractMeasureNode.style.pointerEvents = 'none';
-    abstractMeasureNode.style.zIndex = '-1';
-    abstractMeasureNode.style.left = '-9999px';
-    abstractMeasureNode.style.top = '0';
-    document.body.appendChild(abstractMeasureNode);
+function trimNodeStart(node) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    node.nodeValue = node.nodeValue.replace(/^\s+/g, '');
+    return node.nodeValue.length > 0;
   }
 
-  const styles = window.getComputedStyle(reference);
-  abstractMeasureNode.style.font = styles.font;
-  abstractMeasureNode.style.fontFamily = styles.fontFamily;
-  abstractMeasureNode.style.fontSize = styles.fontSize;
-  abstractMeasureNode.style.fontWeight = styles.fontWeight;
-  abstractMeasureNode.style.fontStyle = styles.fontStyle;
-  abstractMeasureNode.style.letterSpacing = styles.letterSpacing;
-  abstractMeasureNode.style.lineHeight = styles.lineHeight;
-  abstractMeasureNode.style.textTransform = styles.textTransform;
-
-  return abstractMeasureNode;
-}
-
-function measureInlineTextWidth(reference, text) {
-  const measureNode = getAbstractMeasureNode(reference);
-  measureNode.style.width = 'auto';
-  measureNode.style.whiteSpace = 'pre';
-  measureNode.textContent = text;
-  return measureNode.getBoundingClientRect().width;
-}
-
-function getTailWidth(state, suffixText, toggleLabel) {
-  return (
-    measureInlineTextWidth(state.copy, suffixText) +
-    measureInlineTextWidth(state.copy, ABSTRACT_TOGGLE_GAP) +
-    measureInlineTextWidth(state.button, toggleLabel)
-  );
-}
-
-function normalizeLineSlice(text) {
-  return text.replace(/^\s+/g, '').replace(/\s+$/g, '');
-}
-
-function getRemainingText(state, startIndex) {
-  return state.characters.slice(startIndex).join('').replace(/^\s+/g, '');
-}
-
-function skipWrapSpaces(state, index) {
-  let nextIndex = index;
-
-  while (nextIndex < state.characters.length && state.characters[nextIndex] === ' ') {
-    nextIndex += 1;
-  }
-
-  return nextIndex;
-}
-
-function findLineEnd(state, startIndex, maxWidth) {
-  const start = skipWrapSpaces(state, startIndex);
-  if (start >= state.characters.length) {
-    return start;
-  }
-
-  let low = start;
-  let high = state.characters.length;
-
-  while (low < high) {
-    const mid = Math.ceil((low + high) / 2);
-    const candidate = normalizeLineSlice(state.characters.slice(start, mid).join(''));
-
-    if (measureInlineTextWidth(state.copy, candidate) <= maxWidth) {
-      low = mid;
-    } else {
-      high = mid - 1;
-    }
-  }
-
-  if (low === start) {
-    return Math.min(start + 1, state.characters.length);
-  }
-
-  return low;
-}
-
-function buildLine(state, text, suffixText, toggleLabel, isExpanded) {
-  const suffixWidth = measureInlineTextWidth(state.copy, suffixText);
-  const gapWidth = measureInlineTextWidth(state.copy, ABSTRACT_TOGGLE_GAP);
-  const toggleWidth = measureInlineTextWidth(state.button, toggleLabel);
-  const textWidth = measureInlineTextWidth(state.copy, text);
-
-  return {
-    text,
-    suffixText,
-    fillerWidth: Math.max(state.contentWidth - (textWidth + suffixWidth + gapWidth + toggleWidth), 0),
-    toggleLabel,
-    isExpanded,
-  };
-}
-
-function buildCollapsedLines(state) {
-  const lines = [];
-  let index = 0;
-  let lineNumber = 0;
-
-  while (lineNumber < ABSTRACT_PREVIEW_LINES - 1) {
-    const end = findLineEnd(state, index, state.contentWidth);
-    lines.push({
-      text: normalizeLineSlice(state.characters.slice(skipWrapSpaces(state, index), end).join('')),
-    });
-    index = end;
-    lineNumber += 1;
-  }
-
-  const lastStart = skipWrapSpaces(state, index);
-  const lastEnd = findLineEnd(state, lastStart, state.contentWidth - state.collapsedTailWidth);
-  const lastText = normalizeLineSlice(state.characters.slice(lastStart, lastEnd).join(''));
-  lines.push(buildLine(state, lastText, ABSTRACT_COLLAPSED_SUFFIX, 'Show more', false));
-
-  return lines;
-}
-
-function buildExpandedLines(state) {
-  const lines = [];
-  let index = 0;
-  const lastLineWidth = state.contentWidth - state.expandedTailWidth;
-
-  while (measureInlineTextWidth(state.copy, getRemainingText(state, index)) > lastLineWidth) {
-    const end = findLineEnd(state, index, state.contentWidth);
-    lines.push({
-      text: normalizeLineSlice(state.characters.slice(skipWrapSpaces(state, index), end).join('')),
-    });
-    index = end;
-  }
-
-  lines.push(buildLine(state, getRemainingText(state, index), ABSTRACT_EXPANDED_SUFFIX, 'Show less', true));
-  return lines;
-}
-
-function countWrappedLines(state) {
-  let count = 0;
-  let index = 0;
-
-  while (index < state.characters.length) {
-    const end = findLineEnd(state, index, state.contentWidth);
-    if (end <= index) {
-      break;
+  while (node.firstChild) {
+    if (trimNodeStart(node.firstChild)) {
+      return true;
     }
 
-    index = end;
-    count += 1;
+    node.removeChild(node.firstChild);
   }
 
-  return count;
+  return false;
 }
 
-function appendAbstractLine(state, line) {
-  const lineNode = document.createElement('span');
-  lineNode.className = 'abstract-line';
-
-  if (!line.toggleLabel) {
-    lineNode.textContent = line.text;
-    state.copy.appendChild(lineNode);
-    return;
+function trimNodeEnd(node) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    node.nodeValue = node.nodeValue.replace(/\s+$/g, '');
+    return node.nodeValue.length > 0;
   }
 
-  const lineText = document.createElement('span');
+  while (node.lastChild) {
+    if (trimNodeEnd(node.lastChild)) {
+      return true;
+    }
+
+    node.removeChild(node.lastChild);
+  }
+
+  return false;
+}
+
+function normalizeAbstractSource(html) {
+  const template = document.createElement('template');
+  template.innerHTML = html.trim();
+
+  collectTextNodes(template.content).forEach((node) => {
+    node.nodeValue = node.nodeValue.replace(/\s+/g, ' ');
+  });
+
+  trimNodeStart(template.content);
+  trimNodeEnd(template.content);
+
+  return Array.from(template.content.childNodes).map((node) => node.cloneNode(true));
+}
+
+function getNodesTextLength(nodes) {
+  return nodes.reduce((length, node) => length + node.textContent.length, 0);
+}
+
+function getNodesText(nodes) {
+  return nodes.map((node) => node.textContent).join('');
+}
+
+function cloneNodeTextRange(node, cursor, start, end) {
+  if (cursor.offset >= end) {
+    return null;
+  }
+
+  if (node.nodeType === Node.TEXT_NODE) {
+    const value = node.nodeValue;
+    const nodeStart = cursor.offset;
+    const nodeEnd = nodeStart + value.length;
+    cursor.offset = nodeEnd;
+
+    const sliceStart = Math.max(start - nodeStart, 0);
+    const sliceEnd = Math.min(end - nodeStart, value.length);
+    if (sliceStart >= sliceEnd) {
+      return null;
+    }
+
+    return document.createTextNode(value.slice(sliceStart, sliceEnd));
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) {
+    return null;
+  }
+
+  const clone = node.cloneNode(false);
+  Array.from(node.childNodes).forEach((child) => {
+    const childClone = cloneNodeTextRange(child, cursor, start, end);
+    if (childClone) {
+      clone.appendChild(childClone);
+    }
+  });
+
+  return clone.childNodes.length ? clone : null;
+}
+
+function cloneAbstractRange(state, start, end, { trimStart = false, trimEnd = false } = {}) {
+  const fragment = document.createDocumentFragment();
+  const cursor = { offset: 0 };
+
+  state.sourceNodes.forEach((node) => {
+    const clone = cloneNodeTextRange(node, cursor, start, end);
+    if (clone) {
+      fragment.appendChild(clone);
+    }
+  });
+
+  if (trimStart) {
+    trimNodeStart(fragment);
+  }
+
+  if (trimEnd) {
+    trimNodeEnd(fragment);
+  }
+
+  return fragment;
+}
+
+function trimEndOffset(state, offset) {
+  let nextOffset = Math.min(offset, state.textLength);
+
+  while (nextOffset > 0 && /\s/.test(state.plainText[nextOffset - 1])) {
+    nextOffset -= 1;
+  }
+
+  return nextOffset;
+}
+
+function getAbstractMeasureCopy(state) {
+  if (!state.measureCopy) {
+    state.measureCopy = document.createElement('p');
+    state.measureCopy.className = state.copy.className;
+    state.measureCopy.classList.add('paper-abstract-measure');
+    state.measureCopy.style.position = 'absolute';
+    state.measureCopy.style.visibility = 'hidden';
+    state.measureCopy.style.pointerEvents = 'none';
+    state.measureCopy.style.zIndex = '-1';
+    state.measureCopy.style.left = '-10000px';
+    state.measureCopy.style.top = '0';
+    state.measureCopy.style.margin = '0';
+    state.measureCopy.style.contain = 'layout style';
+    document.body.appendChild(state.measureCopy);
+  }
+
+  state.measureCopy.style.width = `${state.contentWidth}px`;
+  return state.measureCopy;
+}
+
+function createAbstractTail(
+  state,
+  { suffixText, fillerWidth, toggleLabel, isExpanded, gapText = ABSTRACT_TOGGLE_GAP, isMeasure = false },
+) {
+  const tail = document.createElement('span');
+  const suffix = document.createElement('span');
   const filler = document.createElement('span');
   const gap = document.createElement('span');
+  const button = isMeasure ? state.button.cloneNode(false) : state.button;
 
-  lineNode.classList.add('abstract-line--tail');
-  lineText.className = 'abstract-line-text';
+  tail.className = 'abstract-tail';
+  suffix.className = 'abstract-suffix';
   filler.className = 'abstract-filler';
   gap.className = 'abstract-gap';
 
-  lineText.textContent = line.text;
-  state.suffix.textContent = line.suffixText;
-  filler.style.width = `${line.fillerWidth}px`;
-  gap.textContent = ABSTRACT_TOGGLE_GAP;
-  state.button.textContent = line.toggleLabel;
-  state.button.hidden = false;
-  state.button.setAttribute('aria-expanded', line.isExpanded ? 'true' : 'false');
+  suffix.textContent = suffixText;
+  filler.style.width = `${Math.max(fillerWidth, 0)}px`;
+  gap.textContent = gapText;
+  button.type = 'button';
+  button.hidden = false;
+  button.textContent = toggleLabel;
+  button.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
 
-  lineNode.appendChild(lineText);
-  lineNode.appendChild(state.suffix);
-  lineNode.appendChild(filler);
-  lineNode.appendChild(gap);
-  lineNode.appendChild(state.button);
-  state.copy.appendChild(lineNode);
+  tail.appendChild(suffix);
+  tail.appendChild(filler);
+  tail.appendChild(gap);
+  tail.appendChild(button);
+
+  return tail;
 }
 
-function renderLines(state, lines) {
-  state.copy.textContent = '';
-  lines.forEach((line) => appendAbstractLine(state, line));
+function setMeasureContent(state, fragment, tailOptions = null) {
+  const measureCopy = getAbstractMeasureCopy(state);
+  measureCopy.replaceChildren(fragment);
+
+  if (tailOptions) {
+    measureCopy.appendChild(createAbstractTail(state, { ...tailOptions, isMeasure: true }));
+  }
+
+  return measureCopy;
+}
+
+function getInlineLineMetrics(element, lineHeight) {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+
+  const rects = Array.from(range.getClientRects()).filter(
+    (rect) => rect.width > 0.25 && rect.height > 0.25,
+  );
+  range.detach();
+
+  const lines = [];
+  const tolerance = lineHeight * 0.45;
+
+  rects
+    .sort((a, b) => a.top - b.top || a.left - b.left)
+    .forEach((rect) => {
+      const center = (rect.top + rect.bottom) / 2;
+      const line = lines.find(
+        (candidate) =>
+          Math.abs(candidate.center - center) <= tolerance ||
+          (rect.top < candidate.bottom - 1 && rect.bottom > candidate.top + 1),
+      );
+
+      if (!line) {
+        lines.push({
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+          left: rect.left,
+          center,
+        });
+        return;
+      }
+
+      line.top = Math.min(line.top, rect.top);
+      line.right = Math.max(line.right, rect.right);
+      line.bottom = Math.max(line.bottom, rect.bottom);
+      line.left = Math.min(line.left, rect.left);
+      line.center = (line.top + line.bottom) / 2;
+    });
+
+  return lines.sort((a, b) => a.top - b.top);
+}
+
+function countMeasuredLines(state, start, end, tailOptions = null) {
+  const fragment = cloneAbstractRange(state, start, end, {
+    trimStart: start > 0,
+    trimEnd: true,
+  });
+  const measureCopy = setMeasureContent(state, fragment, tailOptions);
+  return getInlineLineMetrics(measureCopy, state.lineHeight).length;
+}
+
+function fitsCollapsedEnd(state, endOffset) {
+  return (
+    countMeasuredLines(state, 0, endOffset, {
+      suffixText: ABSTRACT_COLLAPSED_SUFFIX,
+      fillerWidth: 0,
+      toggleLabel: 'Show more',
+      isExpanded: false,
+    }) <= ABSTRACT_PREVIEW_LINES
+  );
+}
+
+function findCollapsedEndOffset(state) {
+  let low = 0;
+  let high = state.textLength;
+
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+
+    if (fitsCollapsedEnd(state, middle)) {
+      low = middle;
+    } else {
+      high = middle - 1;
+    }
+  }
+
+  return trimEndOffset(state, low);
+}
+
+function measureLineEndWidth(state, start, end, suffixText) {
+  const fragment = cloneAbstractRange(state, start, end, {
+    trimStart: start > 0,
+    trimEnd: true,
+  });
+  const measureCopy = setMeasureContent(state, fragment);
+
+  if (suffixText) {
+    const suffix = document.createElement('span');
+    suffix.className = 'abstract-suffix';
+    suffix.textContent = suffixText;
+    measureCopy.appendChild(suffix);
+  }
+
+  const lines = getInlineLineMetrics(measureCopy, state.lineHeight);
+  const lastLine = lines[lines.length - 1];
+  return Math.max(lastLine.right - measureCopy.getBoundingClientRect().left, 0);
+}
+
+function measureTailControlWidth(state, toggleLabel, isExpanded) {
+  const measureCopy = setMeasureContent(
+    state,
+    document.createDocumentFragment(),
+    {
+      suffixText: '',
+      fillerWidth: 0,
+      toggleLabel,
+      isExpanded,
+    },
+  );
+
+  return measureCopy.querySelector('.abstract-tail').getBoundingClientRect().width;
+}
+
+function calculateFillerWidth(state, start, end, suffixText, toggleLabel, isExpanded) {
+  const lineEndWidth = measureLineEndWidth(state, start, end, suffixText);
+  const tailControlWidth = measureTailControlWidth(state, toggleLabel, isExpanded);
+
+  return Math.max(
+    Math.floor(state.contentWidth - lineEndWidth - tailControlWidth - ABSTRACT_FILLER_SAFETY_PX),
+    0,
+  );
+}
+
+function getNaturalTailLayout(state, toggleLabel, isExpanded) {
+  const lineEndWidth = measureLineEndWidth(state, 0, state.textLength, '');
+  const tailControlWidth = measureTailControlWidth(state, toggleLabel, isExpanded);
+  const remainingWidth = state.contentWidth - lineEndWidth - tailControlWidth;
+
+  return {
+    fillerWidth: Math.max(Math.floor(remainingWidth - ABSTRACT_FILLER_SAFETY_PX), 0),
+    fitsInLine: remainingWidth >= 0,
+  };
+}
+
+function renderFullAbstract(state) {
+  state.copy.replaceChildren(cloneAbstractRange(state, 0, state.textLength));
+}
+
+function renderCollapsedAbstract(state) {
+  const content = cloneAbstractRange(state, 0, state.collapsedEndOffset, { trimEnd: true });
+  state.copy.replaceChildren(content);
+  state.copy.appendChild(
+    createAbstractTail(state, {
+      suffixText: ABSTRACT_COLLAPSED_SUFFIX,
+      fillerWidth: state.collapsedFillerWidth,
+      toggleLabel: 'Show more',
+      isExpanded: false,
+    }),
+  );
+}
+
+function renderExpandedAbstract(state) {
+  renderFullAbstract(state);
+  state.copy.appendChild(
+    createAbstractTail(state, {
+      suffixText: '',
+      fillerWidth: state.expandedFillerWidth,
+      gapText: state.expandedTailFitsInLine ? ABSTRACT_TOGGLE_GAP : ' ',
+      toggleLabel: 'Show less',
+      isExpanded: true,
+    }),
+  );
 }
 
 function renderAbstract(container) {
   const state = abstractStates.get(container);
-  if (!state) {
-    return;
-  }
 
   container.classList.toggle('is-collapsible', state.isTruncatable);
   container.classList.toggle('is-expanded', state.isTruncatable && state.expanded);
-  container.style.setProperty('--abstract-line-height', `${state.lineHeight}px`);
 
   if (!state.isTruncatable) {
-    state.copy.textContent = state.fullText;
+    renderFullAbstract(state);
     state.button.textContent = 'Show more';
     state.button.hidden = true;
     state.button.setAttribute('aria-expanded', 'false');
-    state.tail.appendChild(state.suffix);
-    state.tail.appendChild(state.button);
     return;
   }
 
-  renderLines(state, state.expanded ? state.expandedLines : state.collapsedLines);
+  (state.expanded ? renderExpandedAbstract : renderCollapsedAbstract)(state);
 }
 
 function updateAbstractLayout(container) {
   const state = abstractStates.get(container);
-  if (!state || !container.clientWidth) {
+  if (!container.clientWidth) {
     return;
   }
 
   state.lineHeight = resolveLineHeight(state.copy);
   state.contentWidth = state.copy.getBoundingClientRect().width;
-  state.collapsedTailWidth = getTailWidth(state, ABSTRACT_COLLAPSED_SUFFIX, 'Show more');
-  state.expandedTailWidth = getTailWidth(state, ABSTRACT_EXPANDED_SUFFIX, 'Show less');
-  state.isTruncatable = countWrappedLines(state) > ABSTRACT_PREVIEW_LINES;
+  state.isTruncatable =
+    countMeasuredLines(state, 0, state.textLength) > ABSTRACT_PREVIEW_LINES;
 
   if (!state.isTruncatable) {
     state.expanded = false;
-    state.collapsedLines = [];
-    state.expandedLines = [];
+    state.collapsedEndOffset = state.textLength;
+    state.collapsedFillerWidth = 0;
+    state.expandedFillerWidth = 0;
+    state.expandedTailFitsInLine = false;
   } else {
-    state.collapsedLines = buildCollapsedLines(state);
-    state.expandedLines = buildExpandedLines(state);
+    state.collapsedEndOffset = findCollapsedEndOffset(state);
+    state.collapsedFillerWidth = calculateFillerWidth(
+      state,
+      0,
+      state.collapsedEndOffset,
+      ABSTRACT_COLLAPSED_SUFFIX,
+      'Show more',
+      false,
+    );
+    const expandedTailLayout = getNaturalTailLayout(state, 'Show less', true);
+    state.expandedFillerWidth = expandedTailLayout.fillerWidth;
+    state.expandedTailFitsInLine = expandedTailLayout.fitsInLine;
   }
 
   renderAbstract(container);
@@ -400,43 +665,35 @@ function bindAbstracts() {
   const abstracts = Array.from(document.querySelectorAll('[data-abstract]'));
 
   abstracts.forEach((container) => {
-    if (abstractStates.get(container)) return;
-
     const copy = container.querySelector('.paper-abstract-copy');
     const button = container.querySelector('.abstract-toggle');
-    if (!copy || !button) return;
 
-    const tail = document.createElement('span');
-    const suffix = document.createElement('span');
-    const fullText = normalizeAbstractText(copy.textContent);
+    const sourceNodes = normalizeAbstractSource(copy.innerHTML);
+    const textLength = getNodesTextLength(sourceNodes);
+    const plainText = getNodesText(sourceNodes);
 
-    tail.className = 'abstract-tail';
-    suffix.className = 'abstract-suffix';
-    tail.appendChild(suffix);
-    tail.appendChild(button);
-    container.appendChild(tail);
-
-    copy.textContent = fullText;
+    button.hidden = true;
+    button.remove();
     abstractStates.set(container, {
       copy,
       button,
-      tail,
-      suffix,
-      fullText,
-      characters: Array.from(fullText),
+      sourceNodes,
+      textLength,
+      plainText,
       contentWidth: 0,
-      collapsedTailWidth: 0,
-      expandedTailWidth: 0,
-      collapsedLines: [],
-      expandedLines: [],
+      collapsedEndOffset: textLength,
+      collapsedFillerWidth: 0,
+      expandedFillerWidth: 0,
+      expandedTailFitsInLine: false,
       lineHeight: 0,
+      measureCopy: null,
       expanded: false,
       isTruncatable: false,
     });
 
     button.addEventListener('click', () => {
       const state = abstractStates.get(container);
-      if (!state || !state.isTruncatable) return;
+      if (!state.isTruncatable) return;
       state.expanded = !state.expanded;
       renderAbstract(container);
     });
@@ -445,11 +702,7 @@ function bindAbstracts() {
   scheduleAbstractLayout();
   window.addEventListener('resize', scheduleAbstractLayout);
 
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(() => {
-      scheduleAbstractLayout();
-    });
-  }
+  document.fonts.ready.then(scheduleAbstractLayout);
 }
 
 function bindGallery() {
@@ -458,10 +711,6 @@ function bindGallery() {
   const prevButton = document.getElementById('prev');
   const nextButton = document.getElementById('next');
 
-  if (!gallery || !galleryContainer || !prevButton || !nextButton) {
-    return;
-  }
-
   const galleryBaseUrl = 'https://homepage-ruihong.oss-cn-beijing.aliyuncs.com/photos/20251024';
 
   const photos = Array.from({ length: 12 }, (_, index) => ({
@@ -469,16 +718,11 @@ function bindGallery() {
     alt: `Gallery photo ${index + 1}`,
   }));
 
-  if (photos.length < 2) {
-    return;
-  }
-
   const loopedPhotos = [photos[photos.length - 1], ...photos, photos[0], photos[1]];
 
   let currentIndex = 0;
   let isTransitioning = false;
   let autoAdvanceTimer = null;
-  const queuedMoves = [];
 
   function buildGalleryItem(photo, index) {
     const itemDiv = document.createElement('div');
@@ -506,24 +750,12 @@ function bindGallery() {
 
   function move(delta) {
     if (isTransitioning) {
-      queuedMoves.push(delta);
       return;
     }
 
     isTransitioning = true;
     currentIndex += delta;
     syncPosition(true);
-  }
-
-  function flushQueuedMove() {
-    if (!queuedMoves.length) {
-      return;
-    }
-
-    const nextDelta = queuedMoves.shift();
-    window.requestAnimationFrame(() => {
-      move(nextDelta);
-    });
   }
 
   function resetAutoAdvance() {
@@ -565,24 +797,20 @@ function bindGallery() {
     }
 
     isTransitioning = false;
-    flushQueuedMove();
   });
 
   galleryContainer.addEventListener('mouseenter', pauseAutoAdvance);
   galleryContainer.addEventListener('mouseleave', resetAutoAdvance);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      pauseAutoAdvance();
-    } else {
-      resetAutoAdvance();
-    }
+    (document.hidden ? pauseAutoAdvance : resetAutoAdvance)();
   });
 
   resetAutoAdvance();
 }
 
 function bindUI() {
-  bindScrollButtons();
+  bindThemeToggle();
+  bindAnchorNavigation();
   bindReveals();
   bindHeroPointer();
   bindGlobalClickFireworks();
@@ -595,27 +823,17 @@ function bindUI() {
     updateScrollTarget();
   });
 
-  if (typeof reducedMotionMedia.addEventListener === 'function') {
-    reducedMotionMedia.addEventListener('change', (event) => {
-      state.reducedMotion = event.matches;
-      hero.setReducedMotion(event.matches);
-      fireworks.setReducedMotion(event.matches);
-    });
-  } else if (typeof reducedMotionMedia.addListener === 'function') {
-    reducedMotionMedia.addListener((event) => {
-      state.reducedMotion = event.matches;
-      hero.setReducedMotion(event.matches);
-      fireworks.setReducedMotion(event.matches);
-    });
-  }
+  reducedMotionMedia.addEventListener('change', (event) => {
+    applyReducedMotion(event.matches);
+  });
 }
 
 async function init() {
+  await hero.init();
   updateViewport();
   updateScrollTarget();
-  hero.setReducedMotion(state.reducedMotion);
-  fireworks.setReducedMotion(state.reducedMotion);
-  await hero.init();
+  applyTheme(state.theme);
+  applyReducedMotion(state.reducedMotion);
   bindUI();
 
   window.__RUIHONG_HERO__ = hero;

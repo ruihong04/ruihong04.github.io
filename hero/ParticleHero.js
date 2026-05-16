@@ -1,4 +1,4 @@
-import * as THREE from '../three.module.js';
+import * as THREE from 'three';
 import { buildVerticalScrollAtlas } from './atlasBuilder.js';
 import {
   FULLSCREEN_VERTEX_SHADER,
@@ -31,7 +31,7 @@ function currentCamera(config, isMobile) {
 
 function currentPointSize(config, isMobile, viewportHeight) {
   const grid = currentGrid(config, isMobile);
-  const particleCount = Math.max(grid.columns * grid.rows, 1);
+  const particleCount = grid.columns * grid.rows;
   const base = config.particles.basePointSize * Math.sqrt(100000 / particleCount);
   const scale = viewportHeight / 1080;
   return clamp(
@@ -39,6 +39,15 @@ function currentPointSize(config, isMobile, viewportHeight) {
     config.particles.pointSizeMin,
     config.particles.pointSizeMax
   );
+}
+
+const PARTICLE_BLENDINGS = {
+  additive: THREE.AdditiveBlending,
+  normal: THREE.NormalBlending,
+};
+
+function currentTheme(config, theme) {
+  return config.themes[theme];
 }
 
 export class ParticleHero {
@@ -53,6 +62,7 @@ export class ParticleHero {
       isMobile: window.innerWidth <= this.config.viewport.mobileBreakpoint,
       reducedMotion: false,
       scroll: 0,
+      theme: document.documentElement.getAttribute('data-theme'),
     };
 
     this.pointer = {
@@ -71,7 +81,7 @@ export class ParticleHero {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = this.config.render.exposure;
+    this.renderer.toneMappingExposure = currentTheme(this.config, this.state.theme).renderExposure;
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.sortObjects = false;
 
@@ -108,7 +118,6 @@ export class ParticleHero {
     );
 
     this.points = null;
-    this.pointGeometry = null;
     this.pointMaterial = null;
     this.metaTexture = null;
 
@@ -118,14 +127,11 @@ export class ParticleHero {
     this.offsetWrite = null;
     this.velocityMaterial = null;
     this.offsetMaterial = null;
-
-    this.initialized = false;
   }
 
   async init() {
     await this.loadAtlas();
     this.buildParticleResources();
-    this.initialized = true;
     this.refreshLayout(0, 0);
   }
 
@@ -136,10 +142,6 @@ export class ParticleHero {
       overlapRatio: this.config.atlas.overlapRatio,
       worldWidth: this.config.atlas.worldWidth,
     });
-
-    if (this.atlasTexture) {
-      this.atlasTexture.dispose();
-    }
 
     this.atlasTexture = atlas.texture;
     this.atlasCanvas = atlas.canvas;
@@ -158,53 +160,61 @@ export class ParticleHero {
     this.renderer.setSize(width, height, false);
 
     const cameraPose = currentCamera(this.config, isMobile);
-    this.camera.aspect = width / Math.max(height, 1);
+    this.camera.aspect = width / height;
     this.camera.fov = cameraPose.fov;
     this.camera.updateProjectionMatrix();
 
-    if (this.initialized && viewportChanged) {
+    if (viewportChanged) {
       this.buildParticleResources();
-    } else if (this.pointMaterial) {
-      this.pointMaterial.uniforms.uPointSize.value = currentPointSize(this.config, isMobile, height);
-      this.pointMaterial.uniforms.uPixelRatio.value = dpr;
     }
+
+    this.pointMaterial.uniforms.uPointSize.value = currentPointSize(this.config, isMobile, height);
+    this.pointMaterial.uniforms.uPixelRatio.value = dpr;
   }
 
   setReducedMotion(reducedMotion) {
     this.state.reducedMotion = reducedMotion;
   }
 
+  setTheme(theme) {
+    this.state.theme = theme;
+    this.applyThemeSettings();
+  }
+
+  applyThemeSettings() {
+    const theme = currentTheme(this.config, this.state.theme);
+    this.renderer.toneMappingExposure = theme.renderExposure;
+
+    this.pointMaterial.uniforms.uThemeMode.value = theme.particleMode;
+    this.pointMaterial.uniforms.uGlintStrength.value = theme.glintStrength;
+    this.pointMaterial.uniforms.uExposure.value = theme.particleExposure;
+    this.pointMaterial.blending = PARTICLE_BLENDINGS[theme.particleBlending];
+    this.pointMaterial.needsUpdate = true;
+  }
+
   reapplyConfig() {
     const cameraPose = currentCamera(this.config, this.state.isMobile);
     this.camera.fov = cameraPose.fov;
     this.camera.updateProjectionMatrix();
-    this.renderer.toneMappingExposure = this.config.render.exposure;
 
-    if (this.velocityMaterial) {
-      this.velocityMaterial.uniforms.uPointerRadius.value = this.config.interaction.pointerRadius;
-      this.velocityMaterial.uniforms.uPointerStrength.value = this.config.interaction.pointerStrength;
-      this.velocityMaterial.uniforms.uSpring.value = this.config.interaction.spring;
-      this.velocityMaterial.uniforms.uDamping.value = this.config.interaction.damping;
-      this.velocityMaterial.uniforms.uTurbulence.value = this.config.interaction.turbulence;
-      this.velocityMaterial.uniforms.uMaxSpeed.value = this.config.interaction.maxSpeed;
-      this.velocityMaterial.uniforms.uVisibleAspect.value = this.config.atlas.visibleAspect;
-      this.velocityMaterial.uniforms.uFallSpeed.value = this.config.particles.fallSpeed;
-    }
+    this.velocityMaterial.uniforms.uPointerRadius.value = this.config.interaction.pointerRadius;
+    this.velocityMaterial.uniforms.uPointerStrength.value = this.config.interaction.pointerStrength;
+    this.velocityMaterial.uniforms.uSpring.value = this.config.interaction.spring;
+    this.velocityMaterial.uniforms.uDamping.value = this.config.interaction.damping;
+    this.velocityMaterial.uniforms.uTurbulence.value = this.config.interaction.turbulence;
+    this.velocityMaterial.uniforms.uMaxSpeed.value = this.config.interaction.maxSpeed;
+    this.velocityMaterial.uniforms.uVisibleAspect.value = this.config.atlas.visibleAspect;
+    this.velocityMaterial.uniforms.uFallSpeed.value = this.config.particles.fallSpeed;
 
-    if (this.pointMaterial) {
-      this.pointMaterial.uniforms.uPointSize.value = currentPointSize(this.config, this.state.isMobile, this.state.height);
-      this.pointMaterial.uniforms.uVisibleAspect.value = this.config.atlas.visibleAspect;
-      this.pointMaterial.uniforms.uFallSpeed.value = this.config.particles.fallSpeed;
-      this.pointMaterial.uniforms.uGlintStrength.value = this.config.particles.glintStrength;
-      this.pointMaterial.uniforms.uExposure.value = this.config.particles.exposure;
-    }
+    this.pointMaterial.uniforms.uPointSize.value = currentPointSize(this.config, this.state.isMobile, this.state.height);
+    this.pointMaterial.uniforms.uVisibleAspect.value = this.config.atlas.visibleAspect;
+    this.pointMaterial.uniforms.uFallSpeed.value = this.config.particles.fallSpeed;
 
+    this.applyThemeSettings();
     this.refreshLayout(performance.now() / 1000, this.state.scroll);
   }
 
   handlePointerMove(event) {
-    if (!this.initialized) return;
-
     this.pointer.inside = true;
 
     const rect = this.canvas.getBoundingClientRect();
@@ -236,8 +246,6 @@ export class ParticleHero {
   }
 
   render({ delta, elapsed, scroll, reducedMotion }) {
-    if (!this.initialized || !this.atlasTexture || !this.pointMaterial) return;
-
     const cappedDelta = Math.min(delta, 1 / 30);
     const timeScale = reducedMotion ? 0.38 : 1.0;
     const time = elapsed * timeScale;
@@ -257,10 +265,6 @@ export class ParticleHero {
   refreshLayout(time, scroll) {
     this.applyPaperLayout(this.getPaperLayout(time, scroll));
     this.applyCameraLayout(this.getCameraLayout(scroll));
-
-    if (this.points) {
-      this.points.rotation.set(0, 0, 0);
-    }
   }
 
   getPaperLayout(time, scroll) {
@@ -349,8 +353,6 @@ export class ParticleHero {
   }
 
   updateSimulation(delta, time) {
-    if (!this.velocityMaterial || !this.offsetMaterial) return;
-
     const interactionFade = 1 - smoothstep(0.38, 1.0, this.state.scroll);
 
     this.velocityMaterial.uniforms.uTime.value = time;
@@ -389,18 +391,19 @@ export class ParticleHero {
   }
 
   buildParticleResources() {
-    this.disposeParticleResources();
+    if (this.points) {
+      this.disposeParticleResources();
+    }
 
     const grid = currentGrid(this.config, this.state.isMobile);
     const { geometry, metaTexture, width, height } = this.createPointGeometry(grid.columns, grid.rows);
-    this.pointGeometry = geometry;
     this.metaTexture = metaTexture;
 
     this.createSimulationTargets(width, height);
     this.createSimulationMaterials();
     this.createPointMaterial();
 
-    this.points = new THREE.Points(this.pointGeometry, this.pointMaterial);
+    this.points = new THREE.Points(geometry, this.pointMaterial);
     this.points.frustumCulled = false;
     this.flowGroup.add(this.points);
   }
@@ -417,8 +420,8 @@ export class ParticleHero {
     let particleIndex = 0;
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
-        const u = columns > 1 ? column / (columns - 1) : 0;
-        const v = rows > 1 ? row / (rows - 1) : 0;
+        const u = column / (columns - 1);
+        const v = row / (rows - 1);
         const simX = (column + 0.5) / columns;
         const simY = (row + 0.5) / rows;
         const randomX = Math.random();
@@ -540,6 +543,8 @@ export class ParticleHero {
   }
 
   createPointMaterial() {
+    const theme = currentTheme(this.config, this.state.theme);
+
     this.pointMaterial = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
@@ -551,48 +556,48 @@ export class ParticleHero {
         uAtlasWorldSize: { value: this.atlasWorldSize.clone() },
         uVisibleAspect: { value: this.config.atlas.visibleAspect },
         uFallSpeed: { value: this.config.particles.fallSpeed },
-        uGlintStrength: { value: this.config.particles.glintStrength },
-        uExposure: { value: this.config.particles.exposure },
+        uGlintStrength: { value: theme.glintStrength },
+        uExposure: { value: theme.particleExposure },
+        uThemeMode: { value: theme.particleMode },
       },
       vertexShader: PARTICLE_VERTEX_SHADER,
       fragmentShader: PARTICLE_FRAGMENT_SHADER,
       transparent: true,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: PARTICLE_BLENDINGS[theme.particleBlending],
     });
   }
 
   disposeParticleResources() {
-    if (this.points) {
-      this.flowGroup.remove(this.points);
-      this.points.geometry.dispose();
-      this.points.material.dispose();
-      this.points = null;
-    }
+    this.flowGroup.remove(this.points);
+    this.points.geometry.dispose();
+    this.points.material.dispose();
+    this.points = null;
 
     [this.velocityRead, this.velocityWrite, this.offsetRead, this.offsetWrite].forEach((target) => {
-      target?.dispose();
+      target.dispose();
     });
     this.velocityRead = null;
     this.velocityWrite = null;
     this.offsetRead = null;
     this.offsetWrite = null;
 
-    this.velocityMaterial?.dispose();
-    this.offsetMaterial?.dispose();
+    this.velocityMaterial.dispose();
+    this.offsetMaterial.dispose();
     this.velocityMaterial = null;
     this.offsetMaterial = null;
 
-    this.metaTexture?.dispose();
+    this.metaTexture.dispose();
     this.metaTexture = null;
-    this.pointGeometry = null;
     this.pointMaterial = null;
   }
 
   dispose() {
-    this.disposeParticleResources();
+    if (this.points) {
+      this.disposeParticleResources();
+    }
 
-    this.atlasTexture?.dispose();
+    this.atlasTexture.dispose();
     this.atlasTexture = null;
 
     this.simMesh.geometry.dispose();
