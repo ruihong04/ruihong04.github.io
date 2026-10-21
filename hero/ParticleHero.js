@@ -17,20 +17,23 @@ function smoothstep(edge0, edge1, value) {
   return t * t * (3 - 2 * t);
 }
 
-function currentGrid(config, isMobile) {
-  return isMobile ? config.particles.mobile : config.particles.desktop;
+// Offsets have settled this long after the pointer influence ends.
+const SIMULATION_SETTLE_SECONDS = 5;
+
+function currentGrid(config, lightweight) {
+  return lightweight ? config.particles.mobile : config.particles.desktop;
 }
 
-function currentPaper(config, isMobile) {
-  return isMobile ? config.paper.mobile : config.paper.desktop;
+function currentPaper(config, compact) {
+  return compact ? config.paper.mobile : config.paper.desktop;
 }
 
-function currentCamera(config, isMobile) {
-  return isMobile ? config.camera.mobile : config.camera.desktop;
+function currentCamera(config, compact) {
+  return compact ? config.camera.mobile : config.camera.desktop;
 }
 
-function currentPointSize(config, isMobile, viewportHeight) {
-  const grid = currentGrid(config, isMobile);
+function currentPointSize(config, lightweight, viewportHeight) {
+  const grid = currentGrid(config, lightweight);
   const particleCount = grid.columns * grid.rows;
   const base = config.particles.basePointSize * Math.sqrt(100000 / particleCount);
   const scale = viewportHeight / 1080;
@@ -56,10 +59,11 @@ export class ParticleHero {
     this.config = config;
 
     this.state = {
-      width: window.innerWidth,
-      height: window.innerHeight,
+      width: 1,
+      height: 1,
       dpr: 1,
-      isMobile: window.innerWidth <= this.config.viewport.mobileBreakpoint,
+      compact: false,
+      lightweight: false,
       reducedMotion: false,
       scroll: 0,
       theme: document.documentElement.getAttribute('data-theme'),
@@ -72,6 +76,7 @@ export class ParticleHero {
       current: new THREE.Vector2(),
       presence: 0,
     };
+    this.simulationIdleTime = Infinity;
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
@@ -79,9 +84,6 @@ export class ParticleHero {
       antialias: false,
       powerPreference: 'high-performance',
     });
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = currentTheme(this.config, this.state.theme).renderExposure;
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.sortObjects = false;
 
@@ -106,12 +108,7 @@ export class ParticleHero {
     this.simMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial());
     this.simScene.add(this.simMesh);
 
-    const supportsHalfFloat =
-      this.renderer.capabilities.isWebGL2 || this.renderer.extensions.has('EXT_color_buffer_half_float');
-    this.renderTextureType = supportsHalfFloat ? THREE.HalfFloatType : THREE.FloatType;
-
     this.atlasTexture = null;
-    this.atlasCanvas = null;
     this.atlasWorldSize = new THREE.Vector2(
       this.config.atlas.worldWidth,
       this.config.atlas.worldWidth / this.config.atlas.visibleAspect
@@ -129,9 +126,11 @@ export class ParticleHero {
     this.offsetMaterial = null;
   }
 
-  async init() {
+  async init(viewport) {
     await this.loadAtlas();
+    this.applyViewport(viewport);
     this.buildParticleResources();
+    this.applyViewportUniforms();
     this.refreshLayout(0, 0);
   }
 
@@ -144,32 +143,39 @@ export class ParticleHero {
     });
 
     this.atlasTexture = atlas.texture;
-    this.atlasCanvas = atlas.canvas;
     this.atlasWorldSize.copy(atlas.worldSize);
   }
 
-  resize({ width, height, dpr, isMobile }) {
-    const viewportChanged = this.state.isMobile !== isMobile;
+  resize(viewport) {
+    const gridChanged = this.state.lightweight !== viewport.lightweight;
+    this.applyViewport(viewport);
 
+    if (gridChanged) {
+      this.buildParticleResources();
+    }
+
+    this.applyViewportUniforms();
+  }
+
+  applyViewport({ width, height, dpr, compact, lightweight }) {
     this.state.width = width;
     this.state.height = height;
     this.state.dpr = dpr;
-    this.state.isMobile = isMobile;
+    this.state.compact = compact;
+    this.state.lightweight = lightweight;
 
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(width, height, false);
 
-    const cameraPose = currentCamera(this.config, isMobile);
+    const cameraPose = currentCamera(this.config, compact);
     this.camera.aspect = width / height;
     this.camera.fov = cameraPose.fov;
     this.camera.updateProjectionMatrix();
+  }
 
-    if (viewportChanged) {
-      this.buildParticleResources();
-    }
-
-    this.pointMaterial.uniforms.uPointSize.value = currentPointSize(this.config, isMobile, height);
-    this.pointMaterial.uniforms.uPixelRatio.value = dpr;
+  applyViewportUniforms() {
+    this.pointMaterial.uniforms.uPointSize.value = currentPointSize(this.config, this.state.lightweight, this.state.height);
+    this.pointMaterial.uniforms.uPixelRatio.value = this.state.dpr;
   }
 
   setReducedMotion(reducedMotion) {
@@ -183,8 +189,6 @@ export class ParticleHero {
 
   applyThemeSettings() {
     const theme = currentTheme(this.config, this.state.theme);
-    this.renderer.toneMappingExposure = theme.renderExposure;
-
     this.pointMaterial.uniforms.uThemeMode.value = theme.particleMode;
     this.pointMaterial.uniforms.uGlintStrength.value = theme.glintStrength;
     this.pointMaterial.uniforms.uExposure.value = theme.particleExposure;
@@ -193,7 +197,7 @@ export class ParticleHero {
   }
 
   reapplyConfig() {
-    const cameraPose = currentCamera(this.config, this.state.isMobile);
+    const cameraPose = currentCamera(this.config, this.state.compact);
     this.camera.fov = cameraPose.fov;
     this.camera.updateProjectionMatrix();
 
@@ -206,7 +210,7 @@ export class ParticleHero {
     this.velocityMaterial.uniforms.uVisibleAspect.value = this.config.atlas.visibleAspect;
     this.velocityMaterial.uniforms.uFallSpeed.value = this.config.particles.fallSpeed;
 
-    this.pointMaterial.uniforms.uPointSize.value = currentPointSize(this.config, this.state.isMobile, this.state.height);
+    this.applyViewportUniforms();
     this.pointMaterial.uniforms.uVisibleAspect.value = this.config.atlas.visibleAspect;
     this.pointMaterial.uniforms.uFallSpeed.value = this.config.particles.fallSpeed;
 
@@ -241,22 +245,33 @@ export class ParticleHero {
     }
   }
 
+  handlePointerDown(event) {
+    this.handlePointerMove(event);
+    this.pointer.current.copy(this.pointer.target);
+  }
+
   handlePointerLeave() {
     this.pointer.inside = false;
   }
 
-  render({ delta, elapsed, scroll, reducedMotion }) {
+  render({ delta, elapsed, scroll }) {
     const cappedDelta = Math.min(delta, 1 / 30);
-    const timeScale = reducedMotion ? 0.38 : 1.0;
+    const timeScale = this.state.reducedMotion ? 0.38 : 1.0;
     const time = elapsed * timeScale;
 
     this.state.scroll = scroll;
-    this.state.reducedMotion = reducedMotion;
 
     this.updatePointer(cappedDelta);
     this.refreshLayout(time, scroll);
-    this.updateSimulation(cappedDelta, time);
-    this.updatePointUniforms(time, scroll);
+
+    const pointerInfluence = this.pointer.presence * (1 - smoothstep(0.38, 1.0, scroll));
+    this.simulationIdleTime = pointerInfluence > 0 ? 0 : this.simulationIdleTime + cappedDelta;
+    if (this.simulationIdleTime < SIMULATION_SETTLE_SECONDS) {
+      this.updateSimulation(cappedDelta, time, pointerInfluence);
+    }
+
+    this.pointMaterial.uniforms.uTime.value = time;
+    this.pointMaterial.uniforms.uScroll.value = scroll;
 
     this.renderer.setRenderTarget(null);
     this.renderer.render(this.scene, this.camera);
@@ -268,7 +283,7 @@ export class ParticleHero {
   }
 
   getPaperLayout(time, scroll) {
-    const paper = currentPaper(this.config, this.state.isMobile);
+    const paper = currentPaper(this.config, this.state.compact);
     const scrollShift = this.config.paper.scrollShift;
     const floatMotion = this.config.paper.floatMotion;
 
@@ -294,7 +309,7 @@ export class ParticleHero {
   }
 
   getCameraLayout(scroll) {
-    const cameraPose = currentCamera(this.config, this.state.isMobile);
+    const cameraPose = currentCamera(this.config, this.state.compact);
     const cameraShift = this.config.camera.scrollShift;
 
     const position = {
@@ -336,7 +351,7 @@ export class ParticleHero {
       return;
     }
 
-    const followSpeed = this.state.isMobile
+    const followSpeed = this.state.compact
       ? this.config.interaction.followMobile
       : this.config.interaction.followDesktop;
 
@@ -348,13 +363,11 @@ export class ParticleHero {
     this.pointer.presence = clamp(this.pointer.presence + direction * rate * delta, 0, 1);
 
     if (!this.pointer.inside) {
-      this.pointer.current.lerp(new THREE.Vector2(0, 0), this.config.interaction.idleReturn * delta);
+      this.pointer.current.multiplyScalar(1 - this.config.interaction.idleReturn * delta);
     }
   }
 
-  updateSimulation(delta, time) {
-    const interactionFade = 1 - smoothstep(0.38, 1.0, this.state.scroll);
-
+  updateSimulation(delta, time, pointerInfluence) {
     this.velocityMaterial.uniforms.uTime.value = time;
     this.velocityMaterial.uniforms.uDelta.value = delta;
     this.velocityMaterial.uniforms.uVelocityTexture.value = this.velocityRead.texture;
@@ -362,7 +375,7 @@ export class ParticleHero {
     this.velocityMaterial.uniforms.uPointer.value.set(
       this.pointer.current.x,
       this.pointer.current.y,
-      this.pointer.presence * interactionFade
+      pointerInfluence
     );
 
     this.simMesh.material = this.velocityMaterial;
@@ -383,19 +396,12 @@ export class ParticleHero {
     this.pointMaterial.uniforms.uOffsetTexture.value = this.offsetRead.texture;
   }
 
-  updatePointUniforms(time, scroll) {
-    this.pointMaterial.uniforms.uTime.value = time;
-    this.pointMaterial.uniforms.uScroll.value = scroll;
-    this.pointMaterial.uniforms.uPixelRatio.value = this.state.dpr;
-    this.pointMaterial.uniforms.uPointSize.value = currentPointSize(this.config, this.state.isMobile, this.state.height);
-  }
-
   buildParticleResources() {
     if (this.points) {
       this.disposeParticleResources();
     }
 
-    const grid = currentGrid(this.config, this.state.isMobile);
+    const grid = currentGrid(this.config, this.state.lightweight);
     const { geometry, metaTexture, width, height } = this.createPointGeometry(grid.columns, grid.rows);
     this.metaTexture = metaTexture;
 
@@ -478,7 +484,7 @@ export class ParticleHero {
       minFilter: THREE.NearestFilter,
       magFilter: THREE.NearestFilter,
       format: THREE.RGBAFormat,
-      type: this.renderTextureType,
+      type: THREE.HalfFloatType,
       depthBuffer: false,
       stencilBuffer: false,
     });
@@ -548,7 +554,7 @@ export class ParticleHero {
     this.pointMaterial = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        uPointSize: { value: currentPointSize(this.config, this.state.isMobile, this.state.height) },
+        uPointSize: { value: currentPointSize(this.config, this.state.lightweight, this.state.height) },
         uPixelRatio: { value: this.state.dpr },
         uScroll: { value: 0 },
         uAtlasTexture: { value: this.atlasTexture },
@@ -590,18 +596,5 @@ export class ParticleHero {
     this.metaTexture.dispose();
     this.metaTexture = null;
     this.pointMaterial = null;
-  }
-
-  dispose() {
-    if (this.points) {
-      this.disposeParticleResources();
-    }
-
-    this.atlasTexture.dispose();
-    this.atlasTexture = null;
-
-    this.simMesh.geometry.dispose();
-    this.simMesh.material.dispose();
-    this.renderer.dispose();
   }
 }

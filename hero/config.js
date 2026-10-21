@@ -4,6 +4,17 @@ export function createHeroConfig() {
       mobileBreakpoint: 820,
     },
 
+    // Pixel ratio steps down by dprStep while the median frame time exceeds slowFrameMs.
+    quality: {
+      maxDpr: 1.8,
+      maxDprLightweight: 1.35,
+      minDpr: 1,
+      dprStep: 0.25,
+      slowFrameMs: 26,
+      sampleFrames: 90,
+      warmupFrames: 30,
+    },
+
     paper: {
       desktop: {
         position: { x: 4.0, y: -1.46, z: 0.0 },
@@ -83,14 +94,12 @@ export function createHeroConfig() {
       dark: {
         particleMode: 0,
         particleBlending: 'additive',
-        renderExposure: 0.74,
         particleExposure: 0.62,
         glintStrength: 0.16,
       },
       light: {
         particleMode: 1,
         particleBlending: 'normal',
-        renderExposure: 1.0,
         particleExposure: 3,
         glintStrength: 0.16,
       },
@@ -108,11 +117,6 @@ export function createHeroConfig() {
       followDesktop: 0.16,
       followMobile: 0.18,
       idleReturn: 0.05,
-    },
-
-    scroll: {
-      rangeDesktop: 1.14,
-      rangeMobile: 1.02,
     },
   };
 }

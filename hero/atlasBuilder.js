@@ -90,7 +90,7 @@ export async function buildVerticalScrollAtlas(options) {
   atlasCanvas.width = targetWidth;
   atlasCanvas.height = atlasHeight;
 
-  const ctx = atlasCanvas.getContext('2d');
+  const ctx = atlasCanvas.getContext('2d', { willReadFrequently: true });
 
   ctx.clearRect(0, 0, atlasCanvas.width, atlasCanvas.height);
   ctx.drawImage(sources[0].source, 0, 0, atlasCanvas.width, slideHeights[0]);
@@ -127,10 +127,7 @@ export async function buildVerticalScrollAtlas(options) {
   texture.needsUpdate = true;
 
   return {
-    canvas: atlasCanvas,
     texture,
     worldSize: new THREE.Vector2(worldWidth, worldWidth * (atlasCanvas.height / atlasCanvas.width)),
-    slideHeights,
-    overlaps,
   };
 }

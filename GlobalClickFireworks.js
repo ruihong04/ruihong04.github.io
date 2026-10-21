@@ -110,7 +110,6 @@ function createFireworkMaterial(spriteTexture, theme) {
     depthTest: false,
     depthWrite: false,
     blending: theme.blending,
-    vertexColors: false,
   });
 }
 
@@ -122,9 +121,10 @@ export class GlobalClickFireworks {
     document.body.appendChild(this.canvas);
 
     this.state = {
-      width: window.innerWidth,
-      height: window.innerHeight,
+      width: 1,
+      height: 1,
       dpr: 1,
+      lightweight: false,
       reducedMotion: false,
       theme: document.documentElement.getAttribute('data-theme'),
     };
@@ -133,9 +133,8 @@ export class GlobalClickFireworks {
       canvas: this.canvas,
       alpha: true,
       antialias: false,
-      powerPreference: 'high-performance',
+      powerPreference: 'low-power',
     });
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.sortObjects = false;
 
@@ -148,10 +147,15 @@ export class GlobalClickFireworks {
     this.bursts = [];
   }
 
-  resize({ width, height, dpr }) {
+  get isActive() {
+    return this.bursts.length > 0;
+  }
+
+  resize({ width, height, dpr, lightweight }) {
     this.state.width = width;
     this.state.height = height;
     this.state.dpr = clamp(dpr, 1, 1.5);
+    this.state.lightweight = lightweight;
 
     this.renderer.setPixelRatio(this.state.dpr);
     this.renderer.setSize(width, height, false);
@@ -192,7 +196,7 @@ export class GlobalClickFireworks {
       this.disposeBurst(this.bursts.shift());
     }
 
-    const baseCount = this.state.width <= 820 ? 42 : 64;
+    const baseCount = this.state.lightweight ? 42 : 64;
     const particleCount = this.state.reducedMotion ? Math.round(baseCount * 0.55) : baseCount;
     const positions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
@@ -206,6 +210,7 @@ export class GlobalClickFireworks {
     const glowCount = Math.max(4, Math.round(particleCount * 0.14));
     const color = new THREE.Color();
     const theme = FIREWORK_THEMES[this.state.theme];
+    const glowColor = new THREE.Color(theme.glowColor);
 
     for (let index = 0; index < particleCount; index += 1) {
       const baseIndex = index * 3;
@@ -230,7 +235,7 @@ export class GlobalClickFireworks {
 
       color.set(theme.palette[Math.floor(Math.random() * theme.palette.length)]);
       if (isGlowParticle) {
-        color.lerp(new THREE.Color(theme.glowColor), theme.glowMix);
+        color.lerp(glowColor, theme.glowMix);
       }
 
       colors[baseIndex + 0] = color.r;
@@ -287,6 +292,7 @@ export class GlobalClickFireworks {
     });
   }
 
+  // The frame that retires the last burst still renders, which clears the canvas.
   render({ delta }) {
     const clampedDelta = Math.min(delta, 1 / 24);
 
@@ -330,16 +336,5 @@ export class GlobalClickFireworks {
   disposeBurst(burst) {
     this.scene.remove(burst.points);
     burst.geometry.dispose();
-  }
-
-  dispose() {
-    while (this.bursts.length) {
-      this.disposeBurst(this.bursts.pop());
-    }
-
-    this.material.dispose();
-    this.sparkTexture.dispose();
-    this.renderer.dispose();
-    this.canvas.remove();
   }
 }
